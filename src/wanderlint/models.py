@@ -38,11 +38,17 @@ class Listing(_Strict):
     attributes: dict[str, bool | str] = Field(default_factory=dict)
 
 
+class Span(_Strict):
+    """A verbatim excerpt of one listing field. Empty `span` = the field is empty/absent."""
+
+    field: str
+    span: str
+
+
 class Defect(_Strict):
     defect_id: DefectId
     severity: Severity
-    field: str
-    span: str
+    spans: list[Span] = Field(min_length=1)
     evidence: str
     message: str
     suggested_fix: str | None = None
@@ -53,9 +59,16 @@ class Defect(_Strict):
 class GoldLabel(_Strict):
     listing_id: str
     defect_id: DefectId
-    field: str
-    span: str
+    spans: list[Span] = Field(min_length=1)
     label_source: LabelSource
+
+
+class UnsureLabel(_Strict):
+    """A candidate defect the annotator could not decide. Stored in unsure.jsonl, never gold."""
+
+    listing_id: str
+    candidate_defect_ids: list[DefectId] = Field(min_length=1)
+    reason: str = Field(min_length=1)
 
 
 class CheckResult(_Strict):
@@ -113,6 +126,8 @@ class DefectType(_Strict):
     placeholder_values: list[str] | None = None
     placeholder_substrings: list[str] | None = None
     caps_acronym_whitelist: list[str] | None = None
+    categories: list[str] | None = None
+    tags: list[str] | None = None
     locale_conventions: dict[Locale, dict[str, str]] | None = None
 
 

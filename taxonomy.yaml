@@ -39,7 +39,8 @@ defects:
     placeholder_substrings:
       - "lorem ipsum"
     decision_rules:
-      - placeholder_values match case-insensitively on the whole trimmed field value (trailing punctuation ignored); such a value inside longer real text is not D1.
+      - placeholder_values match case-insensitively on the whole trimmed field value, ignoring trailing punctuation ("TBD!!!" and "XXX" are placeholders); such a value inside longer real text is not D1.
+      - A field whose entire value is a placeholder is D1 only, never also D8, even if it has repeated punctuation or caps.
       - placeholder_substrings match case-insensitively anywhere in any text field (including list items); one occurrence makes that field D1 even if it also has real text.
       - An empty list counts as missing for list fields (inclusions).
       - exclusions and tags are optional; empty values there are never D1.
@@ -72,8 +73,9 @@ defects:
     decision_rules:
       - A claim contradicted by another field is D2; a claim with no support anywhere is D3.
       - A promised item that is merely absent from inclusions is D4; if it is listed in exclusions, it is D2.
+      - An item listed in inclusions that the description says costs extra is D2.
       - Ranges that overlap (title "2–3 hours", duration 2.5h) are not a contradiction.
-      - Quote both conflicting spans as evidence.
+      - Quote both conflicting spans as evidence (one span per side).
     examples:
       positive:
         - locale: en-GB
@@ -125,11 +127,11 @@ defects:
     severity: critical
     detection: llm
     definition: >
-      The description or short description promises something (food, drinks,
-      tickets, transport, equipment, guide) that is not listed in inclusions,
-      or inclusions list something the description says must be paid extra.
+      The description or short description promises an item (food, drinks,
+      tickets, transport, equipment, guide) that inclusions do not mention.
     decision_rules:
       - Promised but absent from inclusions is D4; promised and listed in exclusions is D2.
+      - Listed in inclusions but described as a paid extra is D2, not D4.
       - Optional extras clearly marked as "optional"/"gegen Aufpreis" in the description are not D4.
       - Synonyms count as listed (e.g. "tasting of 5 wines" covers "wine").
     examples:
@@ -153,9 +155,10 @@ defects:
     severity: major
     detection: both
     definition: >
-      Text does not match the listing's locale: untranslated fragments in the
-      other language, wrong time/currency/number/date format for the locale,
-      or a mistranslation that changes meaning.
+      Text does not match the listing's locale: untranslated fragments or
+      whole passages in the other language, or wrong time/currency/number/date
+      format for the locale. Meaning-changing mistranslation is out of scope
+      for v1 (CLAUDE.md §11).
     locale_conventions:
       de-DE:
         time: "14:00 Uhr"
@@ -169,9 +172,9 @@ defects:
         date: "24 December 2026"
     decision_rules:
       - Proper nouns, brand names, and established loanwords ("Tour", "Ticket", "Highlights" in DE) are not D5.
-      - Format errors are rule-detected; untranslated fragments and mistranslations are LLM-detected.
-      - A price in the description is D6 regardless of its format; do not also label D5 for that price.
-      - A mistranslation that creates a factual contradiction with another field is D2 if the contradiction is the main problem; otherwise D5.
+      - Format errors are rule-detected; untranslated fragments and wrong-language text are LLM-detected.
+      - A price in title, short_description, or description is D6 regardless of its format; do not also label D5 for that price.
+      - Fees in cancellation_policy are allowed; their currency/number format is checked for D5.
     examples:
       positive:
         - locale: de-DE
@@ -194,11 +197,13 @@ defects:
     detection: both
     definition: >
       Content that breaks marketplace policy: phone numbers, email addresses,
-      external URLs or social handles, prices or discounts in free text,
-      or requests to book or pay off-platform.
+      external URLs or social handles; prices or discounts in title,
+      short_description, or description; or requests to book or pay
+      off-platform.
     decision_rules:
-      - Contact details, URLs, and prices in free text are rule-detected; off-platform booking requests are LLM-detected.
-      - Prices in structured price fields are out of scope; only prices in text fields count.
+      - Contact details, URLs, and prices are rule-detected; off-platform booking requests are LLM-detected.
+      - Prices and discounts count only in title, short_description, and description.
+      - Fees in cancellation_policy (e.g. "50 % fee if cancelled within 24 h", "10 € Stornogebühr") are allowed and are not D6.
       - A street address in meeting_point is allowed; a phone number there is not.
       - Mentioning an entry fee as an exclusion without an amount ("Entry fee not included") is not D6.
       - Discriminatory wording is out of scope for v1 (candidate D9, see CLAUDE.md §11).
@@ -223,11 +228,58 @@ defects:
     severity: major
     detection: llm
     definition: >
-      The category or a tag does not fit the product, or is unsafe/misleading
-      for the audience it targets (e.g. alcohol product tagged for children).
+      The category or a tag is clearly inconsistent with the listing content,
+      judged against the fixed `categories` and `tags` vocabularies below, or
+      is unsafe/misleading for the audience it targets (e.g. alcohol product
+      tagged for children). Vocabulary values are locale-independent.
+    categories:
+      - Tours & Sightseeing
+      - Museums & Exhibitions
+      - Attractions & Tickets
+      - Food & Drink
+      - Outdoor & Adventure
+      - Water Activities
+      - Day Trips
+      - Shows & Performances
+      - Classes & Workshops
+      - Nightlife
+      - Wellness
+      - Transfers & Transport
+    tags:
+      - Walking tour
+      - Bus tour
+      - Bike tour
+      - Boat tour
+      - Guided
+      - Self-guided
+      - Audio guide
+      - Family-friendly
+      - Kids activities
+      - Couples
+      - Wine
+      - Beer
+      - Food tasting
+      - Cooking class
+      - History
+      - Art
+      - Architecture
+      - Local culture
+      - Nature
+      - Wildlife
+      - Hiking
+      - Kayaking
+      - Snorkelling
+      - Outdoor
+      - Indoor
+      - Evening
+      - Half-day
+      - Full-day
+      - Multi-day
+      - Photography
     decision_rules:
       - Judge category and tags against title + description, not against each other.
-      - Tags that are broad but true ("Outdoor" for a walking tour) are not D7.
+      - Only flag clear mismatches; tags that are broad but true ("Outdoor" for a walking tour) are not D7.
+      - Duration-based tags (Half-day, Full-day, Multi-day) that contradict the duration field are D2, not D7.
       - One D7 per listing for scoring; list each wrong tag as a separate span.
     examples:
       positive:
@@ -237,12 +289,12 @@ defects:
           note: Alcohol product tagged for children.
         - locale: de-DE
           field: category
-          text: 'title: "Kajaktour auf der Isar" / category: "Museen & Ausstellungen"'
+          text: 'title: "Kajaktour auf der Isar" / category: "Museums & Exhibitions"'
           note: Kayak tour categorised as museums.
       negative:
         - locale: de-DE
           field: tags
-          text: 'title: "Stadtführung zu Fuß durch Hamburg" / tags: ["Outdoor", "Stadtführung"]'
+          text: 'title: "Stadtführung zu Fuß durch Hamburg" / tags: ["Outdoor", "Walking tour"]'
           note: Broad but accurate tags.
 
   - id: D8
@@ -250,16 +302,19 @@ defects:
     severity: minor
     detection: rule
     definition: >
-      Mechanical style problems: ALL-CAPS title (≥ 50% of counted title
-      words in caps), title longer than 80 characters, duplicated sentence or
-      paragraph, repeated punctuation ("!!!"), or emoji in the title.
+      Mechanical style problems in real (non-placeholder) content: ALL-CAPS
+      title (≥ 50% of counted title words in caps), title longer than 80
+      characters, a sentence or paragraph duplicated within the same field,
+      repeated punctuation ("!!!"), or emoji in the title.
     caps_acronym_whitelist:
       - "UNESCO"
     decision_rules:
+      - D8 applies only to real content; a field whose entire value is a placeholder is D1, not D8.
       - The caps-ratio rule applies to the title only.
       - All-caps tokens of ≤ 4 characters (VIP, BBQ, NYC, DB) and tokens in caps_acronym_whitelist are acronyms and are excluded from the caps ratio entirely (neither numerator nor denominator).
       - If no countable words remain after excluding acronyms, the caps rule does not fire.
       - Title length is measured in characters after trimming whitespace.
+      - Duplicates count only within a single field; text copied between fields (e.g. short_description repeated in description) is not a defect in v1.
       - Tone, wordiness, or weak copy are not D8 (not rule-detectable in v1).
     examples:
       positive:
@@ -270,7 +325,7 @@ defects:
         - locale: de-DE
           field: description
           text: 'description: "Erleben Sie die Altstadt. Erleben Sie die Altstadt."'
-          note: Duplicated sentence.
+          note: Sentence duplicated within the description.
       negative:
         - locale: en-GB
           field: title

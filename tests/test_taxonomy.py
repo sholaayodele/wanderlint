@@ -41,6 +41,10 @@ def test_taxonomy_loads_and_is_valid() -> None:
 
     assert locales == {"en-GB", "de-DE"}
 
+    d7 = taxonomy.by_id()["D7"]
+    assert d7.categories and len(d7.categories) == len(set(d7.categories)) >= 10
+    assert d7.tags and len(d7.tags) == len(set(d7.tags)) >= 25
+
     d1 = taxonomy.by_id()["D1"]
     assert d1.required_fields == [
         "title",

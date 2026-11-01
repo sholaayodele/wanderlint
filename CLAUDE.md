@@ -63,10 +63,10 @@ Source of truth: `taxonomy.yaml`. This table is a summary — if they differ,
 | D2 | Internal inconsistency | critical | llm | Title "3-hour tour", duration field 2h |
 | D3 | Unsupported / misleading claim | critical | llm | "Skip-the-line" with no skip-the-line attribute |
 | D4 | Inclusion/exclusion mismatch | critical | llm | Description promises lunch; inclusions don't list it |
-| D5 | Localization error | major | both | Untranslated EN fragment in DE listing; wrong time/currency format; meaning-changing mistranslation |
-| D6 | Policy violation | critical | both | Phone number, external URL, or price in description |
-| D7 | Category/tag mismatch | major | llm | Wine tasting tagged "Kids activities" |
-| D8 | Style/readability | minor | rule | ALL-CAPS title, title > 80 chars, duplicated sentence/paragraph, repeated punctuation ("!!!"), emoji in title |
+| D5 | Localization error | major | both | Untranslated EN fragment in DE listing; wrong time/currency/number/date format |
+| D6 | Policy violation | critical | both | Phone number, external URL, or price in title/short description/description |
+| D7 | Category/tag mismatch | major | llm | Wine tasting tagged "Kids activities" (judged against the fixed vocabularies in `taxonomy.yaml`) |
+| D8 | Style/readability | minor | rule | ALL-CAPS title, title > 80 chars, sentence/paragraph duplicated within one field, repeated punctuation ("!!!"), emoji in title |
 
 **Required fields (D1):** title, short_description, description, duration,
 meeting_point, inclusions, cancellation_policy, category, locale. Empty strings,
@@ -77,7 +77,10 @@ empty lists, and whole-value placeholders count as missing: `TBD`, `tbc`,
 
 **Caps rule (D8):** title only; ALL-CAPS if ≥ 50% of counted words are caps.
 All-caps tokens of ≤ 4 characters (VIP, BBQ, DB) and whitelisted acronyms
-(`UNESCO`) are excluded from the ratio.
+(`UNESCO`) are excluded from the ratio. D8 applies only to real content.
+
+**Vocabularies (D7):** `taxonomy.yaml` defines a fixed list of 12 `categories`
+and 30 `tags` (locale-independent values).
 
 **Locale conventions (D5):**
 - `de-DE`: `14:00 Uhr`, `25 €` / `25,00 €`, `1.234,50`, dates `24.12.2026`
@@ -92,7 +95,15 @@ All-caps tokens of ≤ 4 characters (VIP, BBQ, DB) and whitelisted acronyms
   inclusions is D4.
 - D1 and D7 score once per listing, however many fields/tags are affected
   (each one is a separate span).
-- A price in free text is D6 only — never also D5 for its format.
+- A price in title, short description or description is D6 only — never also
+  D5 for its format. Fees in `cancellation_policy` are allowed (not D6); their
+  format is checked for D5.
+- Listed in inclusions but described as a paid extra is D2.
+- A field whose entire value is a placeholder (incl. trailing punctuation,
+  e.g. "TBD!!!", "XXX") is D1 only, never D8.
+- D8 duplicates count within a single field only; cross-field copying is not a
+  defect in v1.
+- Meaning-changing mistranslation is out of scope for v1 (see §11).
 - Changing a definition is a **taxonomy change**: bump `taxonomy.yaml` version,
   note it in `failure_patterns.md`, and re-check affected gold labels.
 
@@ -167,9 +178,9 @@ wanderlint/
   data/
     listings/                 # dev.jsonl, test.jsonl, raw/
     listings/regression/      # per-failure-pattern listings
-    labels/                   # seeded.jsonl, gold.jsonl, relabel_kappa.jsonl
+    labels/                   # seeded.jsonl, gold.jsonl, relabel_kappa.jsonl, unsure.jsonl
   src/wanderlint/
-    models.py                 # pydantic: Listing, Defect, CheckResult, EvalReport
+    models.py                 # pydantic: Listing, Span, Defect, GoldLabel, UnsureLabel, Taxonomy, …
     rules.py
     llm_checker.py
     router.py
@@ -208,12 +219,17 @@ class Listing:   id, locale, title, short_description, description, duration,
                  cancellation_policy, category, tags: list[str],
                  attributes: dict[str, bool | str]
 
-class Defect:    defect_id ("D1".."D8"), severity, field, span, evidence,
-                 message, suggested_fix | None, confidence (0–1),
+class Span:      field, span          # verbatim excerpt; "" = field empty/absent
+
+class Defect:    defect_id ("D1".."D8"), severity, spans: list[Span] (≥ 1),
+                 evidence, message, suggested_fix | None, confidence (0–1),
                  source ("rule" | "llm")
 
-class GoldLabel: listing_id, defect_id, field, span,
+class GoldLabel: listing_id, defect_id, spans: list[Span] (≥ 1),
                  label_source ("seeded" | "confirmed" | "added_by_human")
+
+class UnsureLabel: listing_id, candidate_defect_ids (≥ 1), reason
+                   # data/labels/unsure.jsonl — never part of gold
 ```
 
 ---
@@ -274,6 +290,8 @@ make eval-gate                                       # dev + regression, fails o
 - New locales (FR first), per-locale metrics.
 - Candidate defect type D9 — discriminatory wording (removed from D6 in v1):
   needs dedicated dataset; too rare and sensitive for v1 sample size.
+- Meaning-changing mistranslation (removed from D5 in v1): needs source/target
+  text pairs.
 - Drift monitor on full-cycle runs; mine the human-review queue for new patterns.
 - HTML dashboard over `reports/`.
 - API + CMS integration if Wanderlint becomes a product.
@@ -313,3 +331,5 @@ make eval-gate                                       # dev + regression, fails o
 - Span-level scoring: report only, or also gate on it?
 - Single LLM call vs one call per defect group: revisit if D5 recall lags.
 - Threshold for "clean" when only minor (D8) defects are present.
+- Cross-field duplicated text (e.g. short description copied into description):
+  defect or not? Not a defect in v1.
