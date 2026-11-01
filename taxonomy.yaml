@@ -14,7 +14,8 @@ defects:
     detection: rule
     definition: >
       A required field is absent, null, empty, whitespace-only, or consists
-      only of a known placeholder value (see placeholder_values).
+      only of a known placeholder value (placeholder_values), or a text field
+      contains a placeholder substring anywhere (placeholder_substrings).
     required_fields:
       - title
       - short_description
@@ -33,11 +34,13 @@ defects:
       - "folgt"
       - "siehe oben"
       - "see above"
-      - "lorem ipsum"
       - "xxx"
       - "-"
+    placeholder_substrings:
+      - "lorem ipsum"
     decision_rules:
-      - Placeholder matching is case-insensitive on the whole trimmed field value (trailing punctuation ignored); a placeholder inside longer real text is not D1.
+      - placeholder_values match case-insensitively on the whole trimmed field value (trailing punctuation ignored); such a value inside longer real text is not D1.
+      - placeholder_substrings match case-insensitively anywhere in any text field (including list items); one occurrence makes that field D1 even if it also has real text.
       - An empty list counts as missing for list fields (inclusions).
       - exclusions and tags are optional; empty values there are never D1.
       - A field that is present but wrong or vague (e.g. meeting point "city centre") is not D1; consider D2/D3 instead.

@@ -71,8 +71,9 @@ Source of truth: `taxonomy.yaml`. This table is a summary — if they differ,
 **Required fields (D1):** title, short_description, description, duration,
 meeting_point, inclusions, cancellation_policy, category, locale. Empty strings,
 empty lists, and whole-value placeholders count as missing: `TBD`, `tbc`,
-`N/A`, `n. a.`, `folgt`, `siehe oben`, `see above`, `lorem ipsum`, `xxx`, `-`
-(case-insensitive). `exclusions` and `tags` are optional.
+`N/A`, `n. a.`, `folgt`, `siehe oben`, `see above`, `xxx`, `-`
+(case-insensitive). `lorem ipsum` anywhere in a text field also counts
+(substring match). `exclusions` and `tags` are optional.
 
 **Caps rule (D8):** title only; ALL-CAPS if ≥ 50% of counted words are caps.
 All-caps tokens of ≤ 4 characters (VIP, BBQ, DB) and whitelisted acronyms

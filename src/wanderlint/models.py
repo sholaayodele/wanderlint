@@ -111,6 +111,7 @@ class DefectType(_Strict):
     examples: TaxonomyExamples
     required_fields: list[str] | None = None
     placeholder_values: list[str] | None = None
+    placeholder_substrings: list[str] | None = None
     caps_acronym_whitelist: list[str] | None = None
     locale_conventions: dict[Locale, dict[str, str]] | None = None
 
