@@ -62,29 +62,33 @@ Source of truth: `taxonomy.yaml`. This table is a summary — if they differ,
 | D1 | Missing required field | critical | rule | No meeting point or cancellation policy; field is only a placeholder ("TBD", "folgt") |
 | D2 | Internal inconsistency | critical | llm | Title "3-hour tour", duration field 2h |
 | D3 | Unsupported / misleading claim | critical | llm | "Skip-the-line" with no skip-the-line attribute |
-| D4 | Inclusion/exclusion mismatch | critical | llm | Description promises lunch; inclusions don't list it |
+| D4 | Inclusion/exclusion mismatch | critical | llm | Title or description promises lunch / pickup; inclusions don't list it |
 | D5 | Localization error | major | both | Untranslated EN fragment in DE listing; wrong time/currency/number/date format |
-| D6 | Policy violation | critical | both | Phone number, external URL, or price in title/short description/description |
-| D7 | Category/tag mismatch | major | llm | Wine tasting tagged "Kids activities" (judged against the fixed vocabularies in `taxonomy.yaml`) |
+| D6 | Policy violation | critical | both | Contact details in any text field; price or promotion language in title/short description/description |
+| D7 | Category/tag mismatch | major | both | Wine tasting tagged "Kids activities"; value not in the fixed vocabularies (rule) |
 | D8 | Style/readability | minor | rule | ALL-CAPS title, title > 80 chars, sentence/paragraph duplicated within one field, repeated punctuation ("!!!"), emoji in title |
 
 **Required fields (D1):** title, short_description, description, duration,
-meeting_point, inclusions, cancellation_policy, category, locale. Empty strings,
+meeting_point, inclusions, cancellation_policy, category. Empty strings,
 empty lists, and whole-value placeholders count as missing: `TBD`, `tbc`,
 `N/A`, `n. a.`, `folgt`, `siehe oben`, `see above`, `xxx`, `-`
 (case-insensitive). `lorem ipsum` anywhere in a text field also counts
-(substring match). `exclusions` and `tags` are optional.
+(substring match). `exclusions` and `tags` are optional. A missing or invalid
+`locale` is an ingestion error, reported separately and not scored.
 
 **Caps rule (D8):** title only; ALL-CAPS if ≥ 50% of counted words are caps.
 All-caps tokens of ≤ 4 characters (VIP, BBQ, DB) and whitelisted acronyms
-(`UNESCO`) are excluded from the ratio. D8 applies only to real content.
+(`UNESCO`) are excluded from the ratio. A word is a whitespace-separated token
+with ≥ 1 letter. Emoji = Unicode `Extended_Pictographic` (includes © ® ™).
+D8 applies only to real content.
 
 **Vocabularies (D7):** `taxonomy.yaml` defines a fixed list of 12 `categories`
-and 30 `tags` (locale-independent values).
+and 30 `tags` (locale-independent values). A value outside them is D7.
 
-**Locale conventions (D5):**
-- `de-DE`: `14:00 Uhr`, `25 €` / `25,00 €`, `1.234,50`, dates `24.12.2026`
-- `en-GB`: `2:00 pm` or `14:00`, `€25`, `1,234.50`, dates `24 December 2026`
+**Locale conventions (D5)** — allowed formats; D5 only when the other locale's
+convention is used, not for stylistic variants:
+- `de-DE`: `14:00 Uhr` / `14 Uhr` / `14:00`, `25 €` / `25,00 €` / `EUR 25`, `1.234,50`, dates `24.12.2026`
+- `en-GB`: `2:00 pm` / `2pm` / `14:00`, `€25` / `EUR 25`, `1,234.50`, dates `24 December 2026`
 
 **Taxonomy rules**
 - A listing can have zero or many defects. "Clean" is a valid, common outcome.
@@ -93,6 +97,11 @@ and 30 `tags` (locale-independent values).
   a claim contradicted by another field is D2, a claim with no support at all is D3.
 - Promised and listed in exclusions is D2; promised but merely absent from
   inclusions is D4.
+- D3 vs D4: something the customer receives (food, drinks, tickets, transport,
+  pickup, equipment) is D4; a qualitative/feature claim (skip-the-line, small
+  group, private, accessible, superlatives) is D3.
+- Contact details are D6 in every text field (street addresses are not contact
+  details); any discount/promotion language in title/short/description is D6.
 - D1 and D7 score once per listing, however many fields/tags are affected
   (each one is a separate span).
 - A price in title, short description or description is D6 only — never also
@@ -178,7 +187,7 @@ wanderlint/
   data/
     listings/                 # dev.jsonl, test.jsonl, raw/
     listings/regression/      # per-failure-pattern listings
-    labels/                   # seeded.jsonl, gold.jsonl, relabel_kappa.jsonl, unsure.jsonl
+    labels/                   # seeded, gold, relabel_kappa, unsure, rejected_seeds (.jsonl)
   src/wanderlint/
     models.py                 # pydantic: Listing, Span, Defect, GoldLabel, UnsureLabel, Taxonomy, …
     rules.py
@@ -228,8 +237,13 @@ class Defect:    defect_id ("D1".."D8"), severity, spans: list[Span] (≥ 1),
 class GoldLabel: listing_id, defect_id, spans: list[Span] (≥ 1),
                  label_source ("seeded" | "confirmed" | "added_by_human")
 
+                 # frozen gold.jsonl: only "confirmed" | "added_by_human"
+
 class UnsureLabel: listing_id, candidate_defect_ids (≥ 1), reason
                    # data/labels/unsure.jsonl — never part of gold
+
+class RejectedSeed: listing_id, defect_id, reason
+                    # data/labels/rejected_seeds.jsonl — seeded labels dropped from gold
 ```
 
 ---

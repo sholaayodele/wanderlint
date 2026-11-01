@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from wanderlint.models import Defect, GoldLabel, UnsureLabel
+from wanderlint.models import Defect, GoldLabel, RejectedSeed, UnsureLabel
 
 TWO_SPANS = [
     {"field": "title", "span": "3-Hour Tapas Walking Tour"},
@@ -50,3 +50,9 @@ def test_unsure_label_requires_candidates_and_reason() -> None:
         UnsureLabel(listing_id="L1", candidate_defect_ids=[], reason="x")
     with pytest.raises(ValidationError):
         UnsureLabel(listing_id="L1", candidate_defect_ids=["D2"], reason="")
+
+
+def test_rejected_seed_requires_reason() -> None:
+    RejectedSeed(listing_id="L1", defect_id="D3", reason="Claim is backed by attribute.")
+    with pytest.raises(ValidationError):
+        RejectedSeed(listing_id="L1", defect_id="D3", reason="")

@@ -14,7 +14,7 @@ EXPECTED = {
     "D4": ("critical", "llm"),
     "D5": ("major", "both"),
     "D6": ("critical", "both"),
-    "D7": ("major", "llm"),
+    "D7": ("major", "both"),
     "D8": ("minor", "rule"),
 }
 
@@ -55,5 +55,12 @@ def test_taxonomy_loads_and_is_valid() -> None:
         "inclusions",
         "cancellation_policy",
         "category",
-        "locale",
     ]
+
+    d5 = taxonomy.by_id()["D5"]
+    assert d5.locale_conventions is not None
+    assert set(d5.locale_conventions) == {"en-GB", "de-DE"}
+    for formats in d5.locale_conventions.values():
+        assert set(formats) == {"time", "currency", "number", "date"}
+        assert all(values for values in formats.values())
+        assert "EUR 25" in formats["currency"]

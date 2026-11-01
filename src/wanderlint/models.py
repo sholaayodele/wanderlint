@@ -57,6 +57,8 @@ class Defect(_Strict):
 
 
 class GoldLabel(_Strict):
+    """A labelled defect. Frozen gold.jsonl holds only confirmed / added_by_human."""
+
     listing_id: str
     defect_id: DefectId
     spans: list[Span] = Field(min_length=1)
@@ -68,6 +70,14 @@ class UnsureLabel(_Strict):
 
     listing_id: str
     candidate_defect_ids: list[DefectId] = Field(min_length=1)
+    reason: str = Field(min_length=1)
+
+
+class RejectedSeed(_Strict):
+    """A seeded defect the annotator rejected. Logged in rejected_seeds.jsonl, never gold."""
+
+    listing_id: str
+    defect_id: DefectId
     reason: str = Field(min_length=1)
 
 
@@ -128,7 +138,7 @@ class DefectType(_Strict):
     caps_acronym_whitelist: list[str] | None = None
     categories: list[str] | None = None
     tags: list[str] | None = None
-    locale_conventions: dict[Locale, dict[str, str]] | None = None
+    locale_conventions: dict[Locale, dict[str, list[str]]] | None = None
 
 
 class Taxonomy(_Strict):

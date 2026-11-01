@@ -25,7 +25,6 @@ defects:
       - inclusions
       - cancellation_policy
       - category
-      - locale
     placeholder_values:
       - "TBD"
       - "tbc"
@@ -46,6 +45,7 @@ defects:
       - exclusions and tags are optional; empty values there are never D1.
       - A field that is present but wrong or vague (e.g. meeting point "city centre") is not D1; consider D2/D3 instead.
       - One D1 per listing for scoring, even if several fields are missing; list each field as a separate span.
+      - A missing or invalid locale is an ingestion error, reported separately and not scored; it is never D1.
     examples:
       positive:
         - locale: en-GB
@@ -97,15 +97,18 @@ defects:
     severity: critical
     detection: llm
     definition: >
-      The listing makes a factual or benefit claim (skip-the-line, private,
-      small group, hotel pickup, wheelchair accessible, guaranteed sighting,
-      "official", "best price") that no structured attribute or other field
-      supports, or that overstates what the product delivers.
+      The listing makes a qualitative or feature claim about the experience
+      (skip-the-line, private, small group, wheelchair accessible, guaranteed
+      sighting, "official", superlatives such as "the best" / "the only")
+      that no structured attribute or other field supports, or that
+      overstates what the product delivers.
     decision_rules:
       - Check claims against `attributes` first; a claim backed by a true attribute is not D3.
       - If an attribute or field contradicts the claim, label D2, not D3.
       - Plain subjective marketing ("stunning views", "unforgettable") is not D3.
       - Guarantees of outcomes outside the operator's control (weather, wildlife) are D3 unless qualified.
+      - D3 vs D4 — something the customer receives (food, drinks, tickets, transport, pickup, equipment, guide) is D4; a qualitative/feature claim about the experience is D3.
+      - Price or promotion language ("best price", "20 % off") is D6, not D3.
     examples:
       positive:
         - locale: en-GB
@@ -127,10 +130,12 @@ defects:
     severity: critical
     detection: llm
     definition: >
-      The description or short description promises an item (food, drinks,
-      tickets, transport, equipment, guide) that inclusions do not mention.
+      The title, short_description, or description promises something the
+      customer receives (food, drinks, tickets, transport, pickup, equipment,
+      guide) that inclusions do not mention.
     decision_rules:
       - Promised but absent from inclusions is D4; promised and listed in exclusions is D2.
+      - D3 vs D4 — deliverables (what the customer receives) are D4; qualitative/feature claims (skip-the-line, small group, private, accessible, superlatives) are D3.
       - Listed in inclusions but described as a paid extra is D2, not D4.
       - Optional extras clearly marked as "optional"/"gegen Aufpreis" in the description are not D4.
       - Synonyms count as listed (e.g. "tasting of 5 wines" covers "wine").
@@ -159,22 +164,25 @@ defects:
       whole passages in the other language, or wrong time/currency/number/date
       format for the locale. Meaning-changing mistranslation is out of scope
       for v1 (CLAUDE.md §11).
+    # Allowed formats per locale (first entry = preferred form). Anything listed
+    # for the listing's locale is correct.
     locale_conventions:
       de-DE:
-        time: "14:00 Uhr"
-        currency: "25 € / 25,00 €"
-        number: "1.234,50"
-        date: "24.12.2026"
+        time: ["14:00 Uhr", "14 Uhr", "14:00"]
+        currency: ["25 €", "25,00 €", "EUR 25"]
+        number: ["1.234,50"]
+        date: ["24.12.2026"]
       en-GB:
-        time: "2:00 pm or 14:00"
-        currency: "€25"
-        number: "1,234.50"
-        date: "24 December 2026"
+        time: ["2:00 pm", "2pm", "14:00"]
+        currency: ["€25", "EUR 25"]
+        number: ["1,234.50"]
+        date: ["24 December 2026"]
     decision_rules:
       - Proper nouns, brand names, and established loanwords ("Tour", "Ticket", "Highlights" in DE) are not D5.
       - Format errors are rule-detected; untranslated fragments and wrong-language text are LLM-detected.
       - A price in title, short_description, or description is D6 regardless of its format; do not also label D5 for that price.
       - Fees in cancellation_policy are allowed; their currency/number format is checked for D5.
+      - A format error is D5 only when the text uses the other locale's convention (e.g. "€25" or "2:00 pm" in de-DE; "25 €", "14:00 Uhr" or "24.12.2026" in en-GB). Formats in locale_conventions are correct; other stylistic variants are not D5.
     examples:
       positive:
         - locale: de-DE
@@ -196,15 +204,15 @@ defects:
     severity: critical
     detection: both
     definition: >
-      Content that breaks marketplace policy: phone numbers, email addresses,
-      external URLs or social handles; prices or discounts in title,
-      short_description, or description; or requests to book or pay
-      off-platform.
+      Content that breaks marketplace policy: contact details (phone numbers,
+      email addresses, external URLs, social handles) in any text field;
+      prices or discount/promotion language in title, short_description, or
+      description; or requests to book or pay off-platform.
     decision_rules:
-      - Contact details, URLs, and prices are rule-detected; off-platform booking requests are LLM-detected.
-      - Prices and discounts count only in title, short_description, and description.
+      - Contact details, URLs, and prices are rule-detected; promotion language and off-platform booking requests are LLM-detected.
+      - Contact details count in every text field, including meeting_point and cancellation_policy. Street addresses are not contact details.
+      - Prices and any discount/promotion language ("20 % off", "special offer", "nur heute", "Rabatt", "best price guaranteed") count in title, short_description, and description.
       - Fees in cancellation_policy (e.g. "50 % fee if cancelled within 24 h", "10 € Stornogebühr") are allowed and are not D6.
-      - A street address in meeting_point is allowed; a phone number there is not.
       - Mentioning an entry fee as an exclusion without an amount ("Entry fee not included") is not D6.
       - Discriminatory wording is out of scope for v1 (candidate D9, see CLAUDE.md §11).
     examples:
@@ -226,7 +234,7 @@ defects:
   - id: D7
     name: Category/tag mismatch
     severity: major
-    detection: llm
+    detection: both
     definition: >
       The category or a tag is clearly inconsistent with the listing content,
       judged against the fixed `categories` and `tags` vocabularies below, or
@@ -277,6 +285,7 @@ defects:
       - Multi-day
       - Photography
     decision_rules:
+      - A category or tag value not in the vocabularies is D7 (rule-detected); content mismatches are LLM-detected.
       - Judge category and tags against title + description, not against each other.
       - Only flag clear mismatches; tags that are broad but true ("Outdoor" for a walking tour) are not D7.
       - Duration-based tags (Half-day, Full-day, Multi-day) that contradict the duration field are D2, not D7.
@@ -311,6 +320,8 @@ defects:
     decision_rules:
       - D8 applies only to real content; a field whose entire value is a placeholder is D1, not D8.
       - The caps-ratio rule applies to the title only.
+      - A word is a whitespace-separated token containing at least one letter; a caps word has all its letters uppercase.
+      - Emoji = any character with the Unicode Extended_Pictographic property (note this includes © ® ™).
       - All-caps tokens of ≤ 4 characters (VIP, BBQ, NYC, DB) and tokens in caps_acronym_whitelist are acronyms and are excluded from the caps ratio entirely (neither numerator nor denominator).
       - If no countable words remain after excluding acronyms, the caps rule does not fire.
       - Title length is measured in characters after trimming whitespace.

@@ -31,3 +31,18 @@ fixes, and taxonomy/prompt version changes.
   6. D8 duplicates: within one field only. Cross-field copying is not a defect (CLAUDE.md §14).
   7. D5: meaning-changing mistranslation removed from v1 (CLAUDE.md §11, needs source/target
      pairs). D5 = untranslated fragments, wrong-language text, locale format errors.
+- 2026-11-01 — taxonomy v1 gaps closed (before any gold labels; version stays 1):
+  - G1 D3 vs D4: deliverables (food, drinks, tickets, transport, pickup, equipment, guide) → D4;
+    qualitative/feature claims (skip-the-line, small group, private, accessible, superlatives) → D3.
+    "Hotel pickup" removed from D3's claim list. "Best price" moved from D3 to D6 (promotion).
+  - G2 Category/tag outside the vocabularies → D7, rule-detected. D7 detection: llm → both.
+  - G3 D5 = the other locale's convention only. locale_conventions now lists allowed formats per
+    locale (DE "14 Uhr"/"14:00 Uhr"/"14:00"; EN "2pm"/"2:00 pm"/"14:00"; "EUR 25" in both).
+  - G4 Contact details → D6 in every text field incl. meeting_point, cancellation_policy.
+    Street addresses are not contact details.
+  - G5 Any discount/promotion language in title/short_description/description → D6.
+  - G6 D8 word = whitespace token with ≥ 1 letter; emoji = Unicode Extended_Pictographic.
+  - G7 locale removed from D1 required fields; invalid locale = ingestion error, not scored.
+  - G8 D4 covers promises in title, short_description and description.
+  - G9 Frozen gold.jsonl holds only confirmed / added_by_human. Rejected seeds are dropped
+    from gold and logged in data/labels/rejected_seeds.jsonl (new RejectedSeed model).
