@@ -1,0 +1,275 @@
+# Wanderlint defect taxonomy — source of truth (CLAUDE.md §3).
+# Changing any definition or decision rule is a taxonomy change:
+# bump `version`, log it in failure_patterns.md, re-check affected gold labels.
+#
+# Scoring unit is (listing_id, defect_id). Each example shows the relevant
+# field(s); `note` explains why it is (positive) or is not (negative) this defect.
+
+version: 1
+
+defects:
+  - id: D1
+    name: Missing required field
+    severity: critical
+    detection: rule
+    definition: >
+      A required field is absent, null, empty, whitespace-only, or consists
+      only of a known placeholder value (see placeholder_values).
+    required_fields:
+      - title
+      - short_description
+      - description
+      - duration
+      - meeting_point
+      - inclusions
+      - cancellation_policy
+      - category
+      - locale
+    placeholder_values:
+      - "TBD"
+      - "tbc"
+      - "N/A"
+      - "n. a."
+      - "folgt"
+      - "siehe oben"
+      - "see above"
+      - "lorem ipsum"
+      - "xxx"
+      - "-"
+    decision_rules:
+      - Placeholder matching is case-insensitive on the whole trimmed field value (trailing punctuation ignored); a placeholder inside longer real text is not D1.
+      - An empty list counts as missing for list fields (inclusions).
+      - exclusions and tags are optional; empty values there are never D1.
+      - A field that is present but wrong or vague (e.g. meeting point "city centre") is not D1; consider D2/D3 instead.
+      - One D1 per listing for scoring, even if several fields are missing; list each field as a separate span.
+    examples:
+      positive:
+        - locale: en-GB
+          field: meeting_point
+          text: 'meeting_point: ""'
+          note: Empty string counts as missing.
+        - locale: de-DE
+          field: cancellation_policy
+          text: 'cancellation_policy: "folgt"'
+          note: Placeholder ("to follow") counts as missing.
+      negative:
+        - locale: en-GB
+          field: exclusions
+          text: 'exclusions: []'
+          note: exclusions is optional; an empty list is fine.
+
+  - id: D2
+    name: Internal inconsistency
+    severity: critical
+    detection: llm
+    definition: >
+      Two fields of the same listing state facts that contradict each other
+      (duration, times, group size, language, location, age limits, what is
+      included). Both sides of the contradiction are in the listing.
+    decision_rules:
+      - A claim contradicted by another field is D2; a claim with no support anywhere is D3.
+      - A promised item that is merely absent from inclusions is D4; if it is listed in exclusions, it is D2.
+      - Ranges that overlap (title "2–3 hours", duration 2.5h) are not a contradiction.
+      - Quote both conflicting spans as evidence.
+    examples:
+      positive:
+        - locale: en-GB
+          field: title, duration
+          text: 'title: "3-Hour Tapas Walking Tour" / duration: "2 hours"'
+          note: Title duration contradicts the duration field.
+        - locale: de-DE
+          field: description, exclusions
+          text: 'description: "Inklusive Mittagessen in einer Trattoria" / exclusions: ["Mittagessen"]'
+          note: Lunch is both promised and explicitly excluded.
+      negative:
+        - locale: de-DE
+          field: title, duration
+          text: 'title: "Halbtägige Weinprobe" / duration: "4 Stunden"'
+          note: Half-day and 4 hours are compatible.
+
+  - id: D3
+    name: Unsupported / misleading claim
+    severity: critical
+    detection: llm
+    definition: >
+      The listing makes a factual or benefit claim (skip-the-line, private,
+      small group, hotel pickup, wheelchair accessible, guaranteed sighting,
+      "official", "best price") that no structured attribute or other field
+      supports, or that overstates what the product delivers.
+    decision_rules:
+      - Check claims against `attributes` first; a claim backed by a true attribute is not D3.
+      - If an attribute or field contradicts the claim, label D2, not D3.
+      - Plain subjective marketing ("stunning views", "unforgettable") is not D3.
+      - Guarantees of outcomes outside the operator's control (weather, wildlife) are D3 unless qualified.
+    examples:
+      positive:
+        - locale: en-GB
+          field: title
+          text: 'title: "Skip-the-Line Colosseum Tour" / attributes: {}'
+          note: Skip-the-line claimed with no skip_the_line attribute.
+        - locale: de-DE
+          field: description
+          text: 'description: "Wale garantiert – jede Tour!"'
+          note: Guaranteed wildlife sighting is an unsupported outcome claim.
+      negative:
+        - locale: en-GB
+          field: description
+          text: 'description: "Enjoy unforgettable views over the Thames."'
+          note: Subjective marketing, no verifiable claim.
+
+  - id: D4
+    name: Inclusion/exclusion mismatch
+    severity: critical
+    detection: llm
+    definition: >
+      The description or short description promises something (food, drinks,
+      tickets, transport, equipment, guide) that is not listed in inclusions,
+      or inclusions list something the description says must be paid extra.
+    decision_rules:
+      - Promised but absent from inclusions is D4; promised and listed in exclusions is D2.
+      - Optional extras clearly marked as "optional"/"gegen Aufpreis" in the description are not D4.
+      - Synonyms count as listed (e.g. "tasting of 5 wines" covers "wine").
+    examples:
+      positive:
+        - locale: en-GB
+          field: description, inclusions
+          text: 'description: "...followed by a traditional lunch in the village." / inclusions: ["Guide", "Entry tickets"]'
+          note: Lunch is promised but not in inclusions.
+        - locale: de-DE
+          field: short_description, inclusions
+          text: 'short_description: "Mit Hotelabholung und Seilbahnticket" / inclusions: ["Seilbahnticket", "Reiseleitung"]'
+          note: Hotel pickup promised but not included.
+      negative:
+        - locale: de-DE
+          field: description, inclusions
+          text: 'description: "Mittagessen optional gegen Aufpreis" / inclusions: ["Reiseleitung"]'
+          note: Lunch is explicitly an optional paid extra.
+
+  - id: D5
+    name: Localization error
+    severity: major
+    detection: both
+    definition: >
+      Text does not match the listing's locale: untranslated fragments in the
+      other language, wrong time/currency/number/date format for the locale,
+      or a mistranslation that changes meaning.
+    locale_conventions:
+      de-DE:
+        time: "14:00 Uhr"
+        currency: "25 € / 25,00 €"
+        number: "1.234,50"
+        date: "24.12.2026"
+      en-GB:
+        time: "2:00 pm or 14:00"
+        currency: "€25"
+        number: "1,234.50"
+        date: "24 December 2026"
+    decision_rules:
+      - Proper nouns, brand names, and established loanwords ("Tour", "Ticket", "Highlights" in DE) are not D5.
+      - Format errors are rule-detected; untranslated fragments and mistranslations are LLM-detected.
+      - A price in the description is D6 regardless of its format; do not also label D5 for that price.
+      - A mistranslation that creates a factual contradiction with another field is D2 if the contradiction is the main problem; otherwise D5.
+    examples:
+      positive:
+        - locale: de-DE
+          field: description
+          text: 'description: "Die Tour beginnt am Marktplatz. Please bring comfortable shoes."'
+          note: Untranslated English sentence in a German listing.
+        - locale: en-GB
+          field: meeting_point
+          text: 'meeting_point: "Main entrance, 24.12.2026 at 14:00 Uhr"'
+          note: German date and time format in an en-GB listing.
+      negative:
+        - locale: de-DE
+          field: title
+          text: 'title: "Street-Food-Tour durch Kreuzberg"'
+          note: Established loanwords, correct for de-DE.
+
+  - id: D6
+    name: Policy violation
+    severity: critical
+    detection: both
+    definition: >
+      Content that breaks marketplace policy: phone numbers, email addresses,
+      external URLs or social handles, prices or discounts in free text,
+      or requests to book or pay off-platform.
+    decision_rules:
+      - Contact details, URLs, and prices in free text are rule-detected; off-platform booking requests are LLM-detected.
+      - Prices in structured price fields are out of scope; only prices in text fields count.
+      - A street address in meeting_point is allowed; a phone number there is not.
+      - Mentioning an entry fee as an exclusion without an amount ("Entry fee not included") is not D6.
+      - Discriminatory wording is out of scope for v1 (candidate D9, see CLAUDE.md §11).
+    examples:
+      positive:
+        - locale: en-GB
+          field: description
+          text: 'description: "Questions? Call Marco on +39 333 123 4567 or visit www.marcotours.it"'
+          note: Phone number and external URL in description.
+        - locale: de-DE
+          field: short_description
+          text: 'short_description: "Nur heute 20 % Rabatt – jetzt für 39 € statt 49 €!"'
+          note: Price and discount in free text.
+      negative:
+        - locale: en-GB
+          field: meeting_point
+          text: 'meeting_point: "Outside Café Nero, 12 Grafton Street, Dublin"'
+          note: A physical address is allowed.
+
+  - id: D7
+    name: Category/tag mismatch
+    severity: major
+    detection: llm
+    definition: >
+      The category or a tag does not fit the product, or is unsafe/misleading
+      for the audience it targets (e.g. alcohol product tagged for children).
+    decision_rules:
+      - Judge category and tags against title + description, not against each other.
+      - Tags that are broad but true ("Outdoor" for a walking tour) are not D7.
+      - One D7 per listing for scoring; list each wrong tag as a separate span.
+    examples:
+      positive:
+        - locale: en-GB
+          field: tags
+          text: 'title: "Rioja Wine Tasting with Cellar Tour" / tags: ["Kids activities", "Wine"]'
+          note: Alcohol product tagged for children.
+        - locale: de-DE
+          field: category
+          text: 'title: "Kajaktour auf der Isar" / category: "Museen & Ausstellungen"'
+          note: Kayak tour categorised as museums.
+      negative:
+        - locale: de-DE
+          field: tags
+          text: 'title: "Stadtführung zu Fuß durch Hamburg" / tags: ["Outdoor", "Stadtführung"]'
+          note: Broad but accurate tags.
+
+  - id: D8
+    name: Style/readability
+    severity: minor
+    detection: rule
+    definition: >
+      Mechanical style problems: ALL-CAPS title (≥ 50% of counted title
+      words in caps), title longer than 80 characters, duplicated sentence or
+      paragraph, repeated punctuation ("!!!"), or emoji in the title.
+    caps_acronym_whitelist:
+      - "UNESCO"
+    decision_rules:
+      - The caps-ratio rule applies to the title only.
+      - All-caps tokens of ≤ 4 characters (VIP, BBQ, NYC, DB) and tokens in caps_acronym_whitelist are acronyms and are excluded from the caps ratio entirely (neither numerator nor denominator).
+      - If no countable words remain after excluding acronyms, the caps rule does not fire.
+      - Title length is measured in characters after trimming whitespace.
+      - Tone, wordiness, or weak copy are not D8 (not rule-detectable in v1).
+    examples:
+      positive:
+        - locale: en-GB
+          field: title
+          text: 'title: "AMAZING SUNSET BOAT TRIP IN SANTORINI!!!"'
+          note: All-caps title with repeated punctuation.
+        - locale: de-DE
+          field: description
+          text: 'description: "Erleben Sie die Altstadt. Erleben Sie die Altstadt."'
+          note: Duplicated sentence.
+      negative:
+        - locale: en-GB
+          field: title
+          text: 'title: "UNESCO Old Town Walk with VIP Wine Tasting"'
+          note: UNESCO (whitelisted) and VIP (≤ 4 chars) are acronyms; remaining words are not caps.

@@ -59,17 +59,24 @@ Source of truth: `taxonomy.yaml`. This table is a summary — if they differ,
 
 | ID | Defect | Severity | Detection | Example |
 |---|---|---|---|---|
-| D1 | Missing required field | critical | rule | No meeting point or cancellation policy |
+| D1 | Missing required field | critical | rule | No meeting point or cancellation policy; field is only a placeholder ("TBD", "folgt") |
 | D2 | Internal inconsistency | critical | llm | Title "3-hour tour", duration field 2h |
 | D3 | Unsupported / misleading claim | critical | llm | "Skip-the-line" with no skip-the-line attribute |
 | D4 | Inclusion/exclusion mismatch | critical | llm | Description promises lunch; inclusions don't list it |
 | D5 | Localization error | major | both | Untranslated EN fragment in DE listing; wrong time/currency format; meaning-changing mistranslation |
 | D6 | Policy violation | critical | both | Phone number, external URL, or price in description |
 | D7 | Category/tag mismatch | major | llm | Wine tasting tagged "Kids activities" |
-| D8 | Style/readability | minor | rule | ALL-CAPS title, title > 80 chars, duplicated paragraph |
+| D8 | Style/readability | minor | rule | ALL-CAPS title, title > 80 chars, duplicated sentence/paragraph, repeated punctuation ("!!!"), emoji in title |
 
 **Required fields (D1):** title, short_description, description, duration,
-meeting_point, inclusions, cancellation_policy, category, locale.
+meeting_point, inclusions, cancellation_policy, category, locale. Empty strings,
+empty lists, and whole-value placeholders count as missing: `TBD`, `tbc`,
+`N/A`, `n. a.`, `folgt`, `siehe oben`, `see above`, `lorem ipsum`, `xxx`, `-`
+(case-insensitive). `exclusions` and `tags` are optional.
+
+**Caps rule (D8):** title only; ALL-CAPS if ≥ 50% of counted words are caps.
+All-caps tokens of ≤ 4 characters (VIP, BBQ, DB) and whitelisted acronyms
+(`UNESCO`) are excluded from the ratio.
 
 **Locale conventions (D5):**
 - `de-DE`: `14:00 Uhr`, `25 €` / `25,00 €`, `1.234,50`, dates `24.12.2026`
@@ -80,6 +87,11 @@ meeting_point, inclusions, cancellation_policy, category, locale.
 - One defect type per (listing, defect) pair for scoring; multiple spans allowed.
 - Overlaps and tie-breaks are documented in `labeling_guide.md`. Example:
   a claim contradicted by another field is D2, a claim with no support at all is D3.
+- Promised and listed in exclusions is D2; promised but merely absent from
+  inclusions is D4.
+- D1 and D7 score once per listing, however many fields/tags are affected
+  (each one is a separate span).
+- A price in free text is D6 only — never also D5 for its format.
 - Changing a definition is a **taxonomy change**: bump `taxonomy.yaml` version,
   note it in `failure_patterns.md`, and re-check affected gold labels.
 
@@ -232,9 +244,10 @@ class GoldLabel: listing_id, defect_id, field, span,
 ## 10. Commands
 
 ```bash
-uv sync                                              # install
-uv run pytest                                        # tests
-uv run ruff check . && uv run ruff format .          # lint/format
+uv sync --all-groups                                 # install (incl. dev + streamlit label group)
+make test                                            # = uv run pytest
+make lint                                            # ruff check + ruff format --check
+make format                                          # ruff format
 
 uv run python scripts/generate_listings.py --n 150 --seed 42
 uv run streamlit run scripts/label_app.py
@@ -258,6 +271,8 @@ make eval-gate                                       # dev + regression, fails o
 - Auto-fix mode with its own eval (defect removed, no new defects, no fact drift).
 - LLM-as-judge for suggested fixes, validated against human ratings first.
 - New locales (FR first), per-locale metrics.
+- Candidate defect type D9 — discriminatory wording (removed from D6 in v1):
+  needs dedicated dataset; too rare and sensitive for v1 sample size.
 - Drift monitor on full-cycle runs; mine the human-review queue for new patterns.
 - HTML dashboard over `reports/`.
 - API + CMS integration if Wanderlint becomes a product.

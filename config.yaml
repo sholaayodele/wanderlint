@@ -1,0 +1,55 @@
+# Wanderlint runtime configuration. Model names live here only (CLAUDE.md §8).
+
+taxonomy_version: 1
+prompt_version: v1
+
+models:
+  checker: claude-sonnet-5-5       # default checker
+  prescreen: claude-haiku-5-5      # cheap pre-screen experiments (§11)
+  datagen: claude-sonnet-5-5       # synthetic listing generation
+
+llm:
+  max_tokens: 2048
+  temperature: 0.0
+
+# pricing:                         # TODO(M2): fill from current Anthropic pricing, converted to EUR
+#   claude-sonnet-5-5:
+#     input_eur_per_mtok: TODO
+#     output_eur_per_mtok: TODO
+#   claude-haiku-5-5:
+#     input_eur_per_mtok: TODO
+#     output_eur_per_mtok: TODO
+
+cost:
+  target_avg_eur_per_listing: 0.01   # §4 success metric
+  hard_cap_eur_per_run: 2.00         # abort a run if exceeded
+  confirm_above_n_listings: 20       # ask before API runs larger than this (§12)
+
+latency:
+  target_p95_s: 5.0
+
+# PLACEHOLDER — set from the eval report's threshold tables, never guessed (§6).
+# A defect with confidence >= auto_flag flags the listing automatically;
+# between human_review and auto_flag it goes to human review; below it is ignored.
+routing:
+  thresholds:
+    D1: { auto_flag: 0.50, human_review: 0.50 }   # rule-based: confidence is 1.0
+    D2: { auto_flag: 0.80, human_review: 0.40 }
+    D3: { auto_flag: 0.80, human_review: 0.40 }
+    D4: { auto_flag: 0.80, human_review: 0.40 }
+    D5: { auto_flag: 0.85, human_review: 0.50 }
+    D6: { auto_flag: 0.80, human_review: 0.40 }
+    D7: { auto_flag: 0.85, human_review: 0.50 }
+    D8: { auto_flag: 0.50, human_review: 0.50 }   # rule-based
+
+paths:
+  taxonomy: taxonomy.yaml
+  prompts_dir: prompts
+  listings_dir: data/listings
+  dev: data/listings/dev.jsonl
+  test: data/listings/test.jsonl
+  regression_dir: data/listings/regression
+  labels_dir: data/labels
+  gold: data/labels/gold.jsonl
+  reports_dir: reports
+  cache_dir: .cache/llm
