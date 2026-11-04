@@ -46,3 +46,9 @@ fixes, and taxonomy/prompt version changes.
   - G8 D4 covers promises in title, short_description and description.
   - G9 Frozen gold.jsonl holds only confirmed / added_by_human. Rejected seeds are dropped
     from gold and logged in data/labels/rejected_seeds.jsonl (new RejectedSeed model).
+- 2026-11-04 — D8 edge cases (before any gold labels; version stays 1):
+  - © ® ™ are not emoji for D8, although they are Extended_Pictographic. They're legitimate
+    in brand/attraction names ("LEGOLAND® Discovery Centre Tickets" is clean). Listed in
+    D8 emoji_exclusions.
+  - Acronym length check strips leading/trailing punctuation first ("BBQ!!!" → "BBQ",
+    excluded from the caps ratio). Repeated punctuation remains a separate D8 trigger.

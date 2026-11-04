@@ -64,3 +64,10 @@ def test_taxonomy_loads_and_is_valid() -> None:
         assert set(formats) == {"time", "currency", "number", "date"}
         assert all(values for values in formats.values())
         assert "EUR 25" in formats["currency"]
+
+    d8 = taxonomy.by_id()["D8"]
+    assert d8.caps_acronym_whitelist == ["UNESCO"]
+    # © ® ™ are Extended_Pictographic but legitimate in brand names: never D8.
+    assert d8.emoji_exclusions is not None
+    assert set(d8.emoji_exclusions) == {"\u00a9", "\u00ae", "\u2122"}
+    assert len(d8.emoji_exclusions) == 3

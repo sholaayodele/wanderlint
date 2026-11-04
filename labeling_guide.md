@@ -19,7 +19,7 @@ Unit = **(listing, defect type)**. One label per type, any number of spans. "Cle
 | **D5** Localization · major | text in the other language, or a format from the **other** locale's convention | Allowed variants are fine (DE `14 Uhr`, EN `2pm`, `EUR 25` both) · price in title/short/description → D6 only · category/tag values are locale-free · mistranslation → out of scope |
 | **D6** Policy · crit | contact details (phone, email, URL, handle) in **any** text field; price or **any** discount/promo language in title/short/description; off-platform booking | Street address ≠ contact details · fees in cancellation_policy allowed (format → D5) · discriminatory wording → out of scope |
 | **D7** Category/tag · major | category/tag value **not in the vocabularies**, or clearly wrong for the content, or unsafe for its audience | Broad but true → nothing · duration tag vs duration → D2 |
-| **D8** Style · minor | title ALL-CAPS (≥ 50% of counted words), > 80 chars, contains emoji; "!!!"; sentence/paragraph repeated **within one field** | Placeholder-only → D1 · cross-field copy → nothing · tone/weak copy → nothing |
+| **D8** Style · minor | title ALL-CAPS (≥ 50% of counted words), > 80 chars, contains emoji (not © ® ™); "!!!"; sentence/paragraph repeated **within one field** | Placeholder-only → D1 · cross-field copy → nothing · tone/weak copy → nothing · acronym length ignores edge punctuation ("BBQ!!!" = 3) |
 
 **Unsure?** Write it to `unsure.jsonl` (§4), never force it. **Spans:** verbatim, shortest excerpt, `""` for empty fields (§2).
 
@@ -208,18 +208,26 @@ and description, or that's unsafe for its audience (alcohol tagged "Kids activit
   - A **word** is a whitespace-separated token with at least one letter.
   - A caps word has all its letters uppercase.
   - All-caps tokens of 4 characters or fewer, and `UNESCO`, aren't counted.
+    Strip leading/trailing punctuation before measuring: "BBQ!!!" → "BBQ"
+    (3 chars, not counted). The "!!!" is still D8 on its own.
   - It's D8 at 50% or more. If no counted words remain, it's not D8.
-- **Emoji** means any Unicode `Extended_Pictographic` character. That includes
-  © ® ™, so "LEGOLAND®" in a title is D8.
+- **Emoji** means any Unicode `Extended_Pictographic` character **except
+  © ® ™**. Those are legitimate in brand and attraction names and are never D8.
 
 **Not D8**
 - A placeholder-only field → **D1**.
 - Text copied between fields: no defect.
 - Tone or weak copy: no defect.
+- © ® ™ in a title: no defect.
 
 **Examples**
 - EN: title `"Full-Day Cotswolds Villages Tour from London with Afternoon Tea, Lunch and Guided Walks"` (87 chars) → D8.
 - DE: title `"Bootsfahrt auf dem Bodensee 🚤"` → D8.
+- EN: title `"LEGOLAND® Discovery Centre Tickets"` → clean. ® isn't emoji, and only
+  1 of 4 counted words is caps (25%).
+- EN: title `"Thames Sunset Cruise with BBQ!!!"` → D8 for the "!!!" only. "BBQ!!!"
+  is stripped to "BBQ" (3 chars) and left out of the caps ratio, so 0 of 4
+  counted words are caps.
 
 ---
 
@@ -289,9 +297,4 @@ unsure for the same reason, stop and fix the taxonomy before you label more.
 
 ## 7. Open points
 
-No gaps that block labeling. Points to confirm:
-
-- **® and ™ in titles count as D8.** They're `Extended_Pictographic`, so a
-  trademarked name like "LEGOLAND®" in a title is D8.
-- **"≤ 4 characters" for acronyms:** it isn't stated whether punctuation
-  counts. "BBQ!!!" is 6 characters with punctuation and 3 without.
+None. ® © ™ and acronym punctuation were resolved on 2026-11-04 (see §3 D8).

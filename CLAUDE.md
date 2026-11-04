@@ -79,7 +79,8 @@ empty lists, and whole-value placeholders count as missing: `TBD`, `tbc`,
 **Caps rule (D8):** title only; ALL-CAPS if ≥ 50% of counted words are caps.
 All-caps tokens of ≤ 4 characters (VIP, BBQ, DB) and whitelisted acronyms
 (`UNESCO`) are excluded from the ratio. A word is a whitespace-separated token
-with ≥ 1 letter. Emoji = Unicode `Extended_Pictographic` (includes © ® ™).
+with ≥ 1 letter. Leading/trailing punctuation is stripped before the length check ("BBQ!!!" →
+"BBQ"). Emoji = Unicode `Extended_Pictographic`, excluding © ® ™.
 D8 applies only to real content.
 
 **Vocabularies (D7):** `taxonomy.yaml` defines a fixed list of 12 `categories`

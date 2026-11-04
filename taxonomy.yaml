@@ -317,12 +317,17 @@ defects:
       repeated punctuation ("!!!"), or emoji in the title.
     caps_acronym_whitelist:
       - "UNESCO"
+    emoji_exclusions:
+      - "©"
+      - "®"
+      - "™"
     decision_rules:
       - D8 applies only to real content; a field whose entire value is a placeholder is D1, not D8.
       - The caps-ratio rule applies to the title only.
       - A word is a whitespace-separated token containing at least one letter; a caps word has all its letters uppercase.
-      - Emoji = any character with the Unicode Extended_Pictographic property (note this includes © ® ™).
+      - Emoji = any character with the Unicode Extended_Pictographic property, except the characters in emoji_exclusions (© ® ™), which are legitimate in brand and attraction names and are never D8.
       - All-caps tokens of ≤ 4 characters (VIP, BBQ, NYC, DB) and tokens in caps_acronym_whitelist are acronyms and are excluded from the caps ratio entirely (neither numerator nor denominator).
+      - For the acronym length check, strip leading and trailing punctuation from the token first ("BBQ!!!" → "BBQ", 3 characters, excluded). Repeated punctuation is still a separate D8 trigger.
       - If no countable words remain after excluding acronyms, the caps rule does not fire.
       - Title length is measured in characters after trimming whitespace.
       - Duplicates count only within a single field; text copied between fields (e.g. short_description repeated in description) is not a defect in v1.
