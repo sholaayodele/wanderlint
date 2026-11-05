@@ -10,20 +10,38 @@ models:
 
 llm:
   max_tokens: 2048
-  temperature: 0.0
+  # No temperature/top_p/top_k: the current API version rejects sampling
+  # parameters (400). Reproducibility comes from the response cache instead.
 
-# pricing:                         # TODO(M2): fill from current Anthropic pricing, converted to EUR
-#   claude-sonnet-5-5:
-#     input_eur_per_mtok: TODO
-#     output_eur_per_mtok: TODO
-#   claude-haiku-5-5:
-#     input_eur_per_mtok: TODO
-#     output_eur_per_mtok: TODO
+# Anthropic first-party list prices (USD per million tokens), converted with usd_to_eur.
+# cache_write = 5-minute cache write (1.25x input). Update when prices change.
+pricing:
+  usd_to_eur: 0.90                   # set to the current rate; assumption for now
+  usd_per_mtok:
+    claude-sonnet-5-5: { input: 2.00, output: 10.00, cache_read: 0.20, cache_write: 2.50 }
+    claude-haiku-5-5:  { input: 0.10, output: 0.50,  cache_read: 0.01, cache_write: 0.125 }
 
 cost:
   target_avg_eur_per_listing: 0.01   # §4 success metric
-  hard_cap_eur_per_run: 2.00         # abort a run if exceeded
+  hard_cap_eur_per_run: 2.00         # checker/eval runs: abort a run if exceeded
   confirm_above_n_listings: 20       # ask before API runs larger than this (§12)
+
+# Synthetic data generation (scripts/generate_listings.py).
+datagen:
+  prompt_version: datagen_v1
+  effort: low                        # output_config.effort
+  max_tokens: 6000
+  hard_cap_eur_per_run: 5.00         # separate from the checker cap above
+  max_retries: 2                     # regenerations after a failed validation
+  clean_fraction: 0.40
+  de_fraction: 0.30
+  min_per_defect_fraction: 0.10      # 15 per type at n=150
+  hard_case_fraction: 0.20
+  defective_trap_fraction: 0.30
+  output_listings: data/listings/raw/generated.jsonl
+  output_meta: data/listings/raw/generated_meta.jsonl
+  output_failures: data/listings/raw/generation_failures.jsonl
+  output_seeded: data/labels/seeded.jsonl
 
 latency:
   target_p95_s: 5.0

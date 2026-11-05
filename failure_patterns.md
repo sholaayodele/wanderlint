@@ -3,6 +3,20 @@
 Living log of checker failure patterns, root causes (label | definition | model),
 fixes, and taxonomy/prompt version changes.
 
+## Known limitations (cite in every eval report)
+
+- **Same model family for data and checker.** Synthetic listings and seeded defects are
+  generated with Claude (`models.datagen`, Sonnet 5.5); the checker is also Claude. The checker
+  may find Claude-written text and Claude-injected defects easier (or harder) than human-written
+  ones, so scores on this data may not transfer to real catalog content. Mitigation later: a
+  small set of real or human-written listings labelled with the same guide.
+- **Seeded labels are not ground truth.** A "clean" generated listing can still contain an
+  unintended defect; the human labeling pass (confirmed / added_by_human / RejectedSeed) is
+  what makes gold.
+- **Heuristic generation guard.** `datagen/checks.py` approximates the rule-detectable
+  defects (emoji via code-point ranges, simple regexes). It keeps clean listings clean and
+  injections single-type, but it is not the M2 rules engine.
+
 ## Changelog
 
 - 2026-11-01 — taxonomy v1 created (D1–D8).
@@ -52,3 +66,11 @@ fixes, and taxonomy/prompt version changes.
     D8 emoji_exclusions.
   - Acronym length check strips leading/trailing punctuation first ("BBQ!!!" → "BBQ",
     excluded from the caps ratio). Repeated punctuation remains a separate D8 trigger.
+- 2026-11-04 — config: removed `llm.temperature`. The current API version rejects
+  temperature/top_p/top_k with a 400 on every model (Sonnet 5.5 rejects non-default sampling
+  too). Reproducibility comes from the response cache (.cache/llm, keyed on prompt version,
+  model, taxonomy version and full request), not from sampling settings; the API has no seed.
+- 2026-11-04 — datagen pilot finding (generation guard, not the checker): the de-DE "English
+  time format" regex matched correct German "um 14:00 am Ufer" ("am" = "on the"). Fixed: a
+  spaced "am" only counts when no word follows; regression test added. Carry this into the
+  M2 D5 rule.

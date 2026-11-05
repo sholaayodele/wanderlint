@@ -185,8 +185,10 @@ wanderlint/
   failure_patterns.md         # living log of failure patterns & fixes
   prompts/
     checker_v1.md             # never edit a released version; add v2, v3…
+    datagen_listing_v1.md     # synthetic listing generation (clean)
+    datagen_inject_v1.md      # synthetic defect injection
   data/
-    listings/                 # dev.jsonl, test.jsonl, raw/
+    listings/                 # dev.jsonl, test.jsonl, raw/ (generated.jsonl, generated_meta.jsonl)
     listings/regression/      # per-failure-pattern listings
     labels/                   # seeded, gold, relabel_kappa, unsure, rejected_seeds (.jsonl)
   src/wanderlint/
@@ -196,7 +198,9 @@ wanderlint/
     router.py
     pipeline.py               # CLI entry: run modes
     eval.py
-    cost.py                   # token + € accounting
+    cost.py                   # token + € accounting, hard cost cap
+    llm.py                    # cached, cost-tracked structured-output API calls
+    datagen/                  # synthetic data: vocab, plan (seeded specs), checks, inject, run
   scripts/
     generate_listings.py
     label_app.py              # Streamlit labeling tool
@@ -281,7 +285,8 @@ make test                                            # = uv run pytest
 make lint                                            # ruff check + ruff format --check
 make format                                          # ruff format
 
-uv run python scripts/generate_listings.py --n 150 --seed 42
+uv run python scripts/generate_listings.py --n 10 --seed 42 --dry-run   # plan + estimate, no API
+uv run python scripts/generate_listings.py --n 150 --seed 42 --yes      # > 20 listings needs --yes
 uv run streamlit run scripts/label_app.py
 uv run python scripts/kappa.py
 
