@@ -74,3 +74,18 @@ fixes, and taxonomy/prompt version changes.
   time format" regex matched correct German "um 14:00 am Ufer" ("am" = "on the"). Fixed: a
   spaced "am" only counts when no word follows; regression test added. Carry this into the
   M2 D5 rule.
+- 2026-11-05 — datagen prompts v2 (`datagen_listing_v2`, `datagen_inject_v2`), from the v1 pilot
+  review (reports/datagen/pilot_v1_live_run.json):
+  1. Placeholders never go in the title; "see above" / "siehe oben" only in fields below the
+     description (duration, meeting_point, cancellation_policy). Pilot v1 produced the title
+     "SIEHE OBEN!!!" for the D1/D8 hard case.
+  2. ® trap only for categories where a real trademarked brand is plausible; listing prompt
+     forbids ® on public places / natural sites (v1 produced "Schinias Wetland®").
+  3. Injected spans must be the shortest excerpt (≤ 12 words; untranslated fragments ≤ 25),
+     enforced in verification (v1 spanned whole sentences, e.g. D6 "…for only €39.").
+  4. Inject prompt: injected claims/promises must read as the supplier's natural marketing
+     copy at the listing's quality level; no stylistic seams or redundancy (v1: "Your private
+     visit for your group alone"). D2/D3 claim instructions now name the concept only and
+     leave phrasing to the model.
+  Note: the claim instruction text lives in code (datagen/inject.py), so re-running v1 would
+  not hit the v1 cache; v1 outputs are preserved only in the pilot record.

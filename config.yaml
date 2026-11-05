@@ -28,7 +28,7 @@ cost:
 
 # Synthetic data generation (scripts/generate_listings.py).
 datagen:
-  prompt_version: datagen_v1
+  prompt_version: datagen_v2
   effort: low                        # output_config.effort
   max_tokens: 6000
   hard_cap_eur_per_run: 5.00         # separate from the checker cap above

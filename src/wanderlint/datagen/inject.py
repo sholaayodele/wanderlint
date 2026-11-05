@@ -13,7 +13,7 @@ import unicodedata
 from dataclasses import dataclass, field
 from typing import Any
 
-from wanderlint.datagen.checks import CheckContext, find_issues, span_present
+from wanderlint.datagen.checks import CheckContext, find_issues, rstrip_punct, span_present
 from wanderlint.datagen.plan import DefectSpec
 from wanderlint.datagen.vocab import (
     AUDIENCE_TAGS,
@@ -27,8 +27,11 @@ from wanderlint.datagen.vocab import (
     LOREM,
     OUT_OF_VOCAB_CATEGORIES,
     OUT_OF_VOCAB_TAGS,
+    PLACEHOLDER_FIELDS,
     PLACEHOLDERS,
     PLACEHOLDERS_PUNCT,
+    REFERENCE_PLACEHOLDER_FIELDS,
+    REFERENCE_PLACEHOLDERS,
     REPEATED_PUNCT,
     REQUIRED_TEXT_FIELDS,
     TEXT_FIELDS,
@@ -124,14 +127,18 @@ def _d1(listing: Listing, variant: str, rng: random.Random, avoid: set[str]) -> 
             variant,
             {"field": f, "position": pos},
         )
-    f = _choose_field(REQUIRED_TEXT_FIELDS, avoid, rng)
     if variant == "empty":
+        f = _choose_field(REQUIRED_TEXT_FIELDS, avoid, rng)
         value = rng.choice(["", "", " "])
         return Injection(
             listing.model_copy(update={f: value}), [Span(field=f, span="")], variant, {"field": f}
         )
     pool = PLACEHOLDERS_PUNCT[loc] if variant == "placeholder_punct" else PLACEHOLDERS[loc]
     value = rng.choice(pool)
+    is_reference = rstrip_punct(value).strip().lower() in REFERENCE_PLACEHOLDERS
+    f = _choose_field(
+        REFERENCE_PLACEHOLDER_FIELDS if is_reference else PLACEHOLDER_FIELDS, avoid, rng
+    )
     return Injection(
         listing.model_copy(update={f: value}),
         [Span(field=f, span=value)],
@@ -389,15 +396,12 @@ OTHER_LANGUAGE = {"de-DE": "English", "en-GB": "German"}
 LANGUAGE = {"de-DE": "German", "en-GB": "British English"}
 
 _CLAIMS = {
-    "small_group": (
-        "a small-group experience (at most 8 people)",
-        ["small_group", "max_group_size"],
-    ),
+    "small_group": ("small group size (e.g. at most 8 people)", ["small_group", "max_group_size"]),
     "skip_the_line": ("skip-the-line / priority entry", ["skip_the_line"]),
-    "private": ("a private tour just for the customer's own group", ["private"]),
-    "wheelchair_accessible": ("fully wheelchair accessible", ["wheelchair_accessible"]),
-    "official": ("the official tour of the attraction or city", []),
-    "number_one": ("the No. 1 / best-rated experience in the city", []),
+    "private": ("a private tour (only the customer's own party)", ["private"]),
+    "wheelchair_accessible": ("full wheelchair accessibility", ["wheelchair_accessible"]),
+    "official": ("being the official tour of the attraction or city", []),
+    "number_one": ("being the No. 1 / best-rated experience in the city", []),
 }
 _D4_ITEMS = {
     "food_promised": ["lunch", "a three-course dinner", "breakfast", "local snacks along the way"],
@@ -450,6 +454,7 @@ class LLMEdit:
     set_attributes: dict[str, bool | str] = field(default_factory=dict)
     delete_attributes: list[str] = field(default_factory=list)
     extra_spans: list[Span] = field(default_factory=list)
+    max_span_words: int = 12
 
 
 def llm_edit_for(spec: DefectSpec, listing: Listing, rng: random.Random) -> LLMEdit:
@@ -487,7 +492,10 @@ def llm_edit_for(spec: DefectSpec, listing: Listing, rng: random.Random) -> LLME
         set_attrs: dict[str, bool | str] = {key: False}
         extra = [Span(field=f"attributes.{key}", span="false")]
         return LLMEdit(
-            instruction=f"Add a natural claim that the experience is {claim}.",
+            instruction=(
+                f"Work in the feature claim: {claim}. Write it as this supplier's own marketing "
+                "copy would phrase it."
+            ),
             editable=copy_fields,
             set_attributes=set_attrs,
             delete_attributes=["max_group_size"] if key == "small_group" else [],
@@ -513,8 +521,8 @@ def llm_edit_for(spec: DefectSpec, listing: Listing, rng: random.Random) -> LLME
         claim, related = _CLAIMS.get(key, ("guaranteed wildlife sightings", []))
         return LLMEdit(
             instruction=(
-                f"Add the qualitative claim that the experience is/offers {claim}. Nothing else in "
-                "the listing may support or contradict it."
+                f"Work in the feature claim: {claim}. Write it as this supplier's own marketing "
+                "copy would phrase it. Nothing else in the listing may support or contradict it."
             ),
             editable=copy_fields,
             delete_attributes=related,
@@ -546,6 +554,7 @@ def llm_edit_for(spec: DefectSpec, listing: Listing, rng: random.Random) -> LLME
                 "inclusions",
                 "exclusions",
             ],
+            max_span_words=25,  # the span is the untranslated fragment itself
         )
     if v in _EXAMPLES:
         ex = " or ".join(repr(e) for e in _EXAMPLES[v][loc])
@@ -673,6 +682,12 @@ def apply_llm_edit(
 
     spans = [Span(field=s["field"], span=s["span"]) for s in data.get("spans", [])]
     spans = [s for s in spans if s.span.strip()]
+    for s in spans:
+        if s.field not in LIST_FIELDS and len(s.span.split()) > edit.max_span_words:
+            errors.append(
+                f"span in {s.field} is {len(s.span.split())} words; give the shortest excerpt "
+                f"(at most {edit.max_span_words} words) that shows the problem"
+            )
     edited = {f for f in update if f != "attributes"}
     if not any(s.field in edited for s in spans):
         errors.append("no span in an edited field")

@@ -16,6 +16,7 @@ from wanderlint.datagen.vocab import (
     HARD_VARIANT_METHOD,
     LENGTHS,
     QUALITY_WEIGHTS,
+    REGISTERED_OK_CATEGORIES,
     TIME_VARIANTS,
     TRAP_KINDS,
     VARIANTS,
@@ -72,8 +73,10 @@ class PlanConfig:
         return cls(**{k: float(datagen[k]) for k in cls.__dataclass_fields__})
 
 
-def _trap_detail(kind: str, locale: str, rng: random.Random) -> str:
+def _trap_detail(kind: str, locale: str, category: str, rng: random.Random) -> str:
     if kind == "title_acronym_or_registered":
+        if category not in REGISTERED_OK_CATEGORIES:
+            return "acronym"
         return rng.choice(["registered", "acronym"])
     if kind == "fee_in_cancellation":
         return rng.choice(FEE_FORMATS[locale])
@@ -197,7 +200,7 @@ def plan_specs(n: int, seed: int, cfg: PlanConfig, categories: list[str]) -> lis
         else:
             defects = []
             kinds = next_traps(rng.choice([1, 2]))
-        traps = [TrapSpec(kind=k, detail=_trap_detail(k, locale, rng)) for k in kinds]
+        traps = [TrapSpec(kind=k, detail=_trap_detail(k, locale, category, rng)) for k in kinds]
         out.append(
             ListingSpec(
                 id=f"gen-{i + 1:04d}",

@@ -288,6 +288,19 @@ PLACEHOLDERS_PUNCT: dict[str, list[str]] = {
     "en-GB": ["TBD!!!", "XXX", "TBC???", "N/A!!!", "tbd?!?", "SEE ABOVE!!!"],
     "de-DE": ["FOLGT!!!", "XXX", "folgt!!!", "TBD!!!", "n. a.!!!", "SIEHE OBEN!!!"],
 }
+# Placeholders never go in the title. "see above" / "siehe oben" refer to earlier text, so
+# they only make sense in fields shown below the description.
+PLACEHOLDER_FIELDS = ["short_description", "duration", "meeting_point", "cancellation_policy"]
+REFERENCE_PLACEHOLDER_FIELDS = ["duration", "meeting_point", "cancellation_policy"]
+REFERENCE_PLACEHOLDERS = {"see above", "siehe oben"}
+# Categories where a genuinely trademarked brand/attraction name (®) is plausible.
+REGISTERED_OK_CATEGORIES = {
+    "Attractions & Tickets",
+    "Shows & Performances",
+    "Museums & Exhibitions",
+    "Tours & Sightseeing",
+    "Food & Drink",
+}
 LOREM = [
     "Lorem ipsum dolor sit amet.",
     "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",

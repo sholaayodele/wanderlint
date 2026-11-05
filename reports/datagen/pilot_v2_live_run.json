@@ -1,0 +1,243 @@
+{
+  "summary": {
+    "listings_planned": 10,
+    "listings_generated": 10,
+    "clean_listings": 4,
+    "per_locale": {
+      "en-GB": 7,
+      "de-DE": 3
+    },
+    "per_category": {
+      "Shows & Performances": 1,
+      "Water Activities": 1,
+      "Tours & Sightseeing": 1,
+      "Attractions & Tickets": 1,
+      "Outdoor & Adventure": 1,
+      "Nightlife": 1,
+      "Museums & Exhibitions": 1,
+      "Day Trips": 1,
+      "Food & Drink": 1,
+      "Classes & Workshops": 1
+    },
+    "per_defect": {
+      "D1": 2,
+      "D2": 1,
+      "D3": 1,
+      "D4": 1,
+      "D5": 1,
+      "D6": 1,
+      "D7": 1,
+      "D8": 1
+    },
+    "seeded_total": 9,
+    "hard_cases": 2,
+    "hard_cases_by_pair": {
+      "D2/D4": 1,
+      "D1/D8": 1
+    },
+    "traps_clean": {
+      "fee_in_cancellation": 1,
+      "street_address_meeting_point": 2,
+      "locale_variant": 1,
+      "short_in_description": 1,
+      "title_acronym_or_registered": 1
+    },
+    "traps_defective": {
+      "na_in_sentence": 1,
+      "fee_in_cancellation": 1
+    },
+    "defective_with_traps": 2,
+    "failed_defects": 0,
+    "failure_events": 1,
+    "api_calls": 16,
+    "cached_calls": 0,
+    "cost_eur_total": 0.1323,
+    "cost_eur_per_listing": 0.0132,
+    "tokens_per_call": {
+      "generate": {
+        "calls": 11,
+        "avg_input": 400.0,
+        "avg_cache_read": 1679.1,
+        "avg_cache_write": 167.9,
+        "avg_output": 822.3,
+        "avg_cost_eur": 0.0088,
+        "avg_latency_s": 7.4
+      },
+      "inject": {
+        "calls": 5,
+        "avg_input": 931.4,
+        "avg_cache_read": 581.2,
+        "avg_cache_write": 904.6,
+        "avg_output": 364.6,
+        "avg_cost_eur": 0.0071,
+        "avg_latency_s": 3.1
+      }
+    },
+    "n": 10,
+    "seed": 42,
+    "model": "claude-sonnet-5-5",
+    "stopped": null
+  },
+  "calls": [
+    {
+      "purpose": "generate:gen-0001",
+      "cached": false,
+      "cost_eur": 0.012493,
+      "latency_s": 7.81,
+      "input_tokens": 457,
+      "output_tokens": 835,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 1847
+    },
+    {
+      "purpose": "generate:gen-0002",
+      "cached": false,
+      "cost_eur": 0.007644,
+      "latency_s": 7.27,
+      "input_tokens": 392,
+      "output_tokens": 734,
+      "cache_read_input_tokens": 1847,
+      "cache_creation_input_tokens": 0
+    },
+    {
+      "purpose": "inject:gen-0002:D2",
+      "cached": false,
+      "cost_eur": 0.009306,
+      "latency_s": 3.44,
+      "input_tokens": 944,
+      "output_tokens": 442,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 1613
+    },
+    {
+      "purpose": "inject:gen-0002:D4",
+      "cached": false,
+      "cost_eur": 0.008376,
+      "latency_s": 2.62,
+      "input_tokens": 977,
+      "output_tokens": 372,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 1453
+    },
+    {
+      "purpose": "generate:gen-0003",
+      "cached": false,
+      "cost_eur": 0.011356,
+      "latency_s": 8.99,
+      "input_tokens": 369,
+      "output_tokens": 1151,
+      "cache_read_input_tokens": 1847,
+      "cache_creation_input_tokens": 0
+    },
+    {
+      "purpose": "generate:gen-0004",
+      "cached": false,
+      "cost_eur": 0.007725,
+      "latency_s": 8.47,
+      "input_tokens": 362,
+      "output_tokens": 749,
+      "cache_read_input_tokens": 1847,
+      "cache_creation_input_tokens": 0
+    },
+    {
+      "purpose": "generate:gen-0005",
+      "cached": false,
+      "cost_eur": 0.005299,
+      "latency_s": 3.8,
+      "input_tokens": 474,
+      "output_tokens": 457,
+      "cache_read_input_tokens": 1847,
+      "cache_creation_input_tokens": 0
+    },
+    {
+      "purpose": "generate:gen-0005",
+      "cached": false,
+      "cost_eur": 0.005295,
+      "latency_s": 4.01,
+      "input_tokens": 572,
+      "output_tokens": 437,
+      "cache_read_input_tokens": 1847,
+      "cache_creation_input_tokens": 0
+    },
+    {
+      "purpose": "generate:gen-0006",
+      "cached": false,
+      "cost_eur": 0.008598,
+      "latency_s": 7.5,
+      "input_tokens": 382,
+      "output_tokens": 842,
+      "cache_read_input_tokens": 1847,
+      "cache_creation_input_tokens": 0
+    },
+    {
+      "purpose": "inject:gen-0006:D5",
+      "cached": false,
+      "cost_eur": 0.010017,
+      "latency_s": 4.54,
+      "input_tokens": 1039,
+      "output_tokens": 541,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 1457
+    },
+    {
+      "purpose": "generate:gen-0007",
+      "cached": false,
+      "cost_eur": 0.006823,
+      "latency_s": 6.5,
+      "input_tokens": 301,
+      "output_tokens": 661,
+      "cache_read_input_tokens": 1847,
+      "cache_creation_input_tokens": 0
+    },
+    {
+      "purpose": "inject:gen-0007:D3",
+      "cached": false,
+      "cost_eur": 0.005059,
+      "latency_s": 3.39,
+      "input_tokens": 865,
+      "output_tokens": 360,
+      "cache_read_input_tokens": 1453,
+      "cache_creation_input_tokens": 0
+    },
+    {
+      "purpose": "inject:gen-0007:D6",
+      "cached": false,
+      "cost_eur": 0.002731,
+      "latency_s": 1.62,
+      "input_tokens": 832,
+      "output_tokens": 108,
+      "cache_read_input_tokens": 1453,
+      "cache_creation_input_tokens": 0
+    },
+    {
+      "purpose": "generate:gen-0008",
+      "cached": false,
+      "cost_eur": 0.008171,
+      "latency_s": 8.87,
+      "input_tokens": 415,
+      "output_tokens": 788,
+      "cache_read_input_tokens": 1847,
+      "cache_creation_input_tokens": 0
+    },
+    {
+      "purpose": "generate:gen-0009",
+      "cached": false,
+      "cost_eur": 0.011588,
+      "latency_s": 8.75,
+      "input_tokens": 358,
+      "output_tokens": 1179,
+      "cache_read_input_tokens": 1847,
+      "cache_creation_input_tokens": 0
+    },
+    {
+      "purpose": "generate:gen-0010",
+      "cached": false,
+      "cost_eur": 0.011813,
+      "latency_s": 9.25,
+      "input_tokens": 318,
+      "output_tokens": 1212,
+      "cache_read_input_tokens": 1847,
+      "cache_creation_input_tokens": 0
+    }
+  ]
+}

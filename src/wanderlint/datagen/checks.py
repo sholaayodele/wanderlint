@@ -43,7 +43,7 @@ def _strip_punct(s: str) -> str:
     return s[start:end]
 
 
-def _rstrip_punct(s: str) -> str:
+def rstrip_punct(s: str) -> str:
     end = len(s)
     while end > 0 and unicodedata.category(s[end - 1]).startswith("P"):
         end -= 1
@@ -55,10 +55,10 @@ def is_placeholder(value: str, placeholders: list[str]) -> bool:
     v = value.strip()
     if not v:
         return False
-    norm = _rstrip_punct(v).strip().lower()
+    norm = rstrip_punct(v).strip().lower()
     if norm == "":  # value is only punctuation, e.g. "-" or "!!!"
         return True
-    return norm in {_rstrip_punct(p).strip().lower() for p in placeholders}
+    return norm in {rstrip_punct(p).strip().lower() for p in placeholders}
 
 
 def caps_ratio(title: str, whitelist: list[str]) -> tuple[int, int]:

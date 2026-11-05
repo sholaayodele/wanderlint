@@ -291,6 +291,54 @@ def test_rule_injection_is_exact_and_only_that_type(make, defect_id, variant) ->
     assert types <= {defect_id}
 
 
+@pytest.mark.parametrize("make", [clean_en, clean_de], ids=["en", "de"])
+@pytest.mark.parametrize("variant", ["placeholder", "placeholder_punct"])
+def test_placeholders_never_in_title_and_references_only_below(make, variant) -> None:
+    for seed in range(60):
+        inj = _rule_inject(make(), "D1", variant, seed)
+        (span,) = inj.spans
+        assert span.field != "title"
+        if span.span.rstrip("!?.").strip().lower() in {"see above", "siehe oben"}:
+            assert span.field in {"duration", "meeting_point", "cancellation_policy"}
+
+
+def test_registered_trap_only_in_brand_plausible_categories(specs150) -> None:
+    from wanderlint.datagen.vocab import REGISTERED_OK_CATEGORIES
+
+    traps = [
+        (s.category, t.detail)
+        for s in specs150
+        for t in s.traps
+        if t.kind == "title_acronym_or_registered"
+    ]
+    assert any(d == "registered" for _, d in traps)
+    assert all(c in REGISTERED_OK_CATEGORIES for c, d in traps if d == "registered")
+
+
+def test_llm_edit_rejects_overlong_span() -> None:
+    listing = clean_en()
+    spec = DefectSpec(defect_id="D6", method="llm", variant="price")
+    edit = llm_edit_for(spec, listing, random.Random(0))
+    sentence = "Entry ticket and an audio guide are included for only €39 per person today."
+    data = {
+        "text_edits": [
+            {"field": "short_description", "new_value": f"{listing.short_description} {sentence}"}
+        ],
+        "spans": [{"field": "short_description", "span": sentence}],
+    }
+    _, errors = apply_llm_edit(listing, edit, data, spec.variant)
+    assert any("shortest excerpt" in e for e in errors)
+    data["spans"] = [{"field": "short_description", "span": "only €39"}]
+    _, errors = apply_llm_edit(listing, edit, data, spec.variant)
+    assert errors == []
+
+
+@pytest.mark.parametrize("version", ["datagen_v1", "datagen_v2"])
+def test_prompts_render(version: str) -> None:
+    p = render_prompts(ROOT / "prompts", version, TAXONOMY)
+    assert "{{" not in p.listing_system and p.inject_system.strip()
+
+
 def test_alcohol_listing_gets_audience_tag() -> None:
     lst = clean_en().model_copy(update={"tags": ["Wine"]})
     inj = apply_rule_variant(

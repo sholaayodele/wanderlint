@@ -111,8 +111,11 @@ def trap_instruction(trap: TrapSpec, locale: str) -> str:
     if k == "title_acronym_or_registered":
         if d == "registered":
             return (
-                "The title contains a registered brand or attraction name written with the ® sign "
-                "(e.g. 'LEGOLAND®' or a plausible venue name®) that fits the activity."
+                "The title contains a brand or attraction name that is genuinely trademarked, "
+                "written with the ® sign, e.g. a theme park, attraction chain or branded "
+                "experience (LEGOLAND®, SEA LIFE®, Madame Tussauds®, or a plausible commercial "
+                "brand of that kind). Never put ® on a public place, natural site, city, street "
+                "or generic museum name."
             )
         return (
             "The title contains a genuine short acronym in capitals (e.g. VIP, BBQ, UNESCO, or a "
