@@ -11,10 +11,15 @@ import yaml
 from wanderlint.cost import CostTracker, Price, Pricing
 from wanderlint.datagen.checks import find_issues, span_present, trap_present
 from wanderlint.datagen.inject import (
+    _D4_ITEMS,
     apply_llm_edit,
     apply_rule_variant,
+    claim_keys,
+    d4_items,
     inject_rule,
     llm_edit_for,
+    same_sentence_problems,
+    trailing_clause_problems,
     verify_injection,
 )
 from wanderlint.datagen.plan import DefectSpec, ListingSpec, PlanConfig, TrapSpec, plan_specs
@@ -333,7 +338,9 @@ def test_llm_edit_rejects_overlong_span() -> None:
     assert errors == []
 
 
-@pytest.mark.parametrize("version", ["datagen_v1", "datagen_v2"])
+@pytest.mark.parametrize(
+    "version", ["datagen_v1", "datagen_v2", "datagen_v3", "datagen_v4", "datagen_v5"]
+)
 def test_prompts_render(version: str) -> None:
     p = render_prompts(ROOT / "prompts", version, TAXONOMY)
     assert "{{" not in p.listing_system and p.inject_system.strip()
@@ -383,10 +390,11 @@ def test_llm_edit_hard_d2_d3_sets_contradicting_attribute() -> None:
     spec = DefectSpec(defect_id="D2", method="llm", variant="claim_vs_attribute", hard_case="D2/D3")
     edit = llm_edit_for(spec, listing, random.Random(3))
     (key,) = edit.set_attributes
-    new_desc = listing.description + " Exklusiv für Ihre Gruppe."
+    claim = f"Als {edit.required_span_terms[0]} buchbar."
+    new_desc = f"{listing.description} {claim}"
     data = {
         "text_edits": [{"field": "description", "new_value": new_desc}],
-        "spans": [{"field": "description", "span": "Exklusiv für Ihre Gruppe."}],
+        "spans": [{"field": "description", "span": claim}],
     }
     inj, errors = apply_llm_edit(listing, edit, data, spec.variant)
     errors += verify_injection(listing, inj, "D2", [], set(), CTX, detectable=False)
@@ -396,7 +404,7 @@ def test_llm_edit_hard_d2_d3_sets_contradicting_attribute() -> None:
 
 
 def test_llm_edit_rejects_non_editable_field() -> None:
-    listing = clean_en()
+    listing = clean_en().model_copy(update={"exclusions": []})
     spec = DefectSpec(defect_id="D4", method="llm", variant="food_promised")
     edit = llm_edit_for(spec, listing, random.Random(0))
     data = {"text_edits": [{"field": "cancellation_policy", "new_value": "x"}], "spans": []}
@@ -426,7 +434,9 @@ class FakeGenerator:
                 data["meeting_point"] += f", {trap['detail']}"
             if trap["kind"] == "title_acronym_or_registered":
                 data["title"] = (
-                    "LEGOLAND® Discovery Centre" if trap["detail"] == "registered" else "VIP Tour"
+                    "LEGOLAND® Discovery Centre"
+                    if trap["detail"] == "registered"
+                    else f"{trap['detail'].removeprefix('acronym:').split('|')[0]} Tour"
                 )
         data["attributes"] = []
         return SimpleNamespace(
@@ -489,3 +499,258 @@ def test_run_all_writes_listings_labels_and_meta_with_traps(tmp_path) -> None:
     assert meta["gen-0001"]["traps"] == [{"kind": "fee_in_cancellation", "detail": "EUR 25"}]
     assert meta["gen-0002"]["traps"] == [{"kind": "locale_variant", "detail": "14:00"}]
     assert {a["defect_id"] for a in meta["gen-0002"]["seeded"]} == {"D6", "D8"}
+
+
+# --- datagen v3 ---------------------------------------------------------------------
+
+
+def test_acronym_trap_lists_claim_free_acronyms(specs150) -> None:
+    from wanderlint.datagen.vocab import CLAIM_ACRONYMS, TRAP_ACRONYMS
+
+    assert set(TRAP_ACRONYMS) == set(TAXONOMY.by_id()["D7"].categories)
+    details = [
+        (s.category, t.detail)
+        for s in specs150
+        for t in s.traps
+        if t.kind == "title_acronym_or_registered" and t.detail != "registered"
+    ]
+    assert details
+    for category, detail in details:
+        options = detail.removeprefix("acronym:").split("|")
+        assert options == TRAP_ACRONYMS[category]
+        assert not set(options) & CLAIM_ACRONYMS
+        assert all(len(a) <= 4 for a in options)  # never counted by the caps rule
+
+
+@pytest.mark.parametrize(
+    ("title", "present"),
+    [
+        ("SUP Yoga on the Alster", True),
+        ("Stand-up paddling on the Alster", False),
+        ("UNESCO Wetlands SUP Tour", False),  # a claim acronym spoils the trap
+        ("VIP 4WD Safari", False),
+        ("GPS Treasure Hunt", False),  # not in this category's list
+    ],
+)
+def test_acronym_trap_requires_listed_acronym_and_no_claim(title: str, present: bool) -> None:
+    listing = clean_en().model_copy(update={"title": title})
+    detail = "acronym:4WD|SUP|MTB"
+    assert trap_present("title_acronym_or_registered", detail, listing, CTX) is present
+
+
+@pytest.mark.parametrize("variant", ["unsupported_claim", "claim_vs_attribute"])
+@pytest.mark.parametrize("make", [clean_en, clean_de], ids=["en", "de"])
+def test_claims_must_name_the_feature_explicitly(make, variant: str) -> None:
+    listing = make()
+    spec = DefectSpec(defect_id="D3", method="llm", variant=variant)
+    for seed in range(6):
+        edit = llm_edit_for(spec, listing, random.Random(seed))
+        assert edit.required_span_terms and edit.required_span_terms[0] in edit.instruction
+        vague = "A personal visit" if listing.locale == "en-GB" else "Ein persönlicher Besuch"
+        explicit = edit.required_span_terms[0].capitalize() + " included"
+        for claim, ok in [(vague, False), (explicit, True)]:
+            data = {
+                "text_edits": [
+                    {"field": "description", "new_value": f"{listing.description} {claim}."}
+                ],
+                "spans": [{"field": "description", "span": claim}],
+            }
+            _, errors = apply_llm_edit(listing, edit, data, variant)
+            assert any("explicitly" in e for e in errors) is not ok, (seed, claim)
+
+
+def test_claim_spans_capped_at_eight_words() -> None:
+    listing = clean_en().model_copy(update={"exclusions": []})
+    spec = DefectSpec(defect_id="D4", method="llm", variant="drink_promised")
+    edit = llm_edit_for(spec, listing, random.Random(0))
+    for span, ok in [
+        ("a hot drink and a glass of wine", True),  # 8 words
+        ("warm up with a hot drink and a glass of wine", False),  # 10 words
+    ]:
+        data = {
+            "text_edits": [
+                {"field": "description", "new_value": f"{listing.description} You {span}."}
+            ],
+            "spans": [{"field": "description", "span": span}],
+        }
+        _, errors = apply_llm_edit(listing, edit, data, spec.variant)
+        assert any("shortest excerpt" in e for e in errors) is not ok
+
+
+# --- datagen v4 ---------------------------------------------------------------------
+
+
+def test_group_claims_only_for_guided_products() -> None:
+    keys = ["small_group", "skip_the_line", "private", "wheelchair_accessible"]
+    ticket = clean_en()  # Attractions & Tickets, no guide
+    assert claim_keys(ticket, keys) == ["skip_the_line", "wheelchair_accessible"]
+    guided = clean_de()  # Water Activities with "Guide" in inclusions
+    assert claim_keys(guided, keys) == keys
+    no_guide = guided.model_copy(update={"inclusions": ["Kajak und Paddel", "Schwimmweste"]})
+    assert "private" not in claim_keys(no_guide, keys)
+    audio = no_guide.model_copy(update={"inclusions": ["Audio guide", "Exhibition guide"]})
+    assert "private" not in claim_keys(audio, keys)
+    museum = guided.model_copy(update={"category": "Museums & Exhibitions"})
+    assert "private" not in claim_keys(museum, keys)
+    for seed in range(20):
+        for variant in ("unsupported_claim", "claim_vs_attribute"):
+            spec = DefectSpec(defect_id="D3", method="llm", variant=variant)
+            edit = llm_edit_for(spec, ticket, random.Random(seed))
+            assert not {"private tour", "small group"} & set(edit.required_span_terms)
+            assert all("guided" not in t for t in edit.required_span_terms)
+
+
+def test_claim_must_not_add_a_receivable() -> None:
+    listing = clean_en()
+    spec = DefectSpec(defect_id="D3", method="llm", variant="unsupported_claim")
+    edit = llm_edit_for(spec, listing, random.Random(1))
+    term = edit.required_span_terms[0]
+    for added, ok in [
+        (f"Enjoy {term} access.", True),
+        (f"Enjoy {term} access with a guided walk.", False),
+        (f"Enjoy {term} access and a welcome drink.", False),
+    ]:
+        data = {
+            "text_edits": [{"field": "description", "new_value": f"{listing.description} {added}"}],
+            "spans": [{"field": "description", "span": f"{term} access"}],
+        }
+        _, errors = apply_llm_edit(listing, edit, data, spec.variant)
+        assert any("customer receives" in e for e in errors) is not ok, added
+
+
+@pytest.mark.parametrize(
+    ("exclusions", "item", "allowed"),
+    [
+        (["Lunch and drinks"], "a glass of local wine", False),  # pilot v3 gen-0002
+        (["Getränke"], "a welcome drink", False),
+        (["Food and snacks"], "lunch", False),
+        (["Hotel transfers"], "hotel pickup and drop-off", False),
+        (["Gratuities"], "a glass of local wine", True),
+        # pilot v5 gen-0002: a ferry ticket is transport, not admission
+        (["Return high-speed ferry ticket from Tokyo"], "entry tickets to the main sight", True),
+        (["Return high-speed ferry ticket from Tokyo"], "return transport", False),
+    ],
+)
+def test_d4_item_must_not_overlap_listed_items(exclusions, item, allowed) -> None:
+    listing = clean_de().model_copy(update={"exclusions": exclusions, "inclusions": ["Kajak"]})
+    assert (item in d4_items(listing, [item])) is allowed
+
+
+def test_d4_falls_back_when_every_item_overlaps() -> None:
+    listing = clean_en()  # exclusions: "Food and drinks"
+    for v in ("food_promised", "drink_promised"):
+        assert d4_items(listing, _D4_ITEMS[v]) == []
+    assert d4_items(listing, _D4_ITEMS["transport_promised"])
+    # A span that overlaps a listed item is rejected even if the model chose it itself.
+    listing = listing.model_copy(update={"exclusions": ["Lunch and drinks"]})
+    spec = DefectSpec(defect_id="D4", method="llm", variant="transport_promised")
+    edit = llm_edit_for(spec, listing, random.Random(0))
+    data = {
+        "text_edits": [
+            {"field": "description", "new_value": f"{listing.description} Wine is on us."}
+        ],
+        "spans": [{"field": "description", "span": "Wine is on us"}],
+    }
+    _, errors = apply_llm_edit(listing, edit, data, spec.variant)
+    assert any("overlaps the listed item" in e for e in errors)
+
+
+def test_two_edits_in_one_field_need_different_sentences() -> None:
+    text = (
+        "Warm up with a glass of local wine, and you receive a souvenir photo. "
+        "Snorkel over the reef.\n\nYou receive a souvenir photo of the day."
+    )
+    listing = clean_en().model_copy(update={"description": text})
+    prior = [Span(field="description", span="a glass of local wine")]
+    same = [Span(field="description", span="you receive a souvenir photo")]
+    other = [Span(field="description", span="You receive a souvenir photo of the day")]
+    assert same_sentence_problems(listing, same, prior)
+    assert same_sentence_problems(listing, other, prior) == []
+    # Different fields never clash.
+    assert same_sentence_problems(listing, [Span(field="title", span="LEGOLAND®")], prior) == []
+
+
+# --- datagen v5 ---------------------------------------------------------------------
+
+_G2_BEFORE = (
+    "Life jackets are provided, so the trip suits beginners as well as confident swimmers. "
+    "Expect damselfish and wrasse.\n\n"
+    "The trip finishes back at the harbour with time for questions."
+)
+
+
+@pytest.mark.parametrize(
+    ("after", "span", "rejected"),
+    [
+        # pilot v4 gen-0002, both lines: a promise bolted onto an unchanged sentence.
+        (
+            _G2_BEFORE.replace(
+                "confident swimmers.", "confident swimmers, and all entrance fees are included."
+            ),
+            "all entrance fees are included",
+            True,
+        ),
+        (
+            _G2_BEFORE.replace(
+                "for questions.",
+                "for questions, and each guest takes home a complimentary souvenir photo.",
+            ),
+            "a complimentary souvenir photo",
+            True,
+        ),
+        # Same promise as its own sentence, or a rewritten sentence on that topic: fine.
+        (
+            _G2_BEFORE.replace(
+                "for questions.",
+                "for questions. Each guest takes home a complimentary souvenir photo.",
+            ),
+            "a complimentary souvenir photo",
+            False,
+        ),
+        (
+            _G2_BEFORE.replace(
+                "The trip finishes back at the harbour with time for questions.",
+                "Back at the harbour, each guest receives a complimentary souvenir photo.",
+            ),
+            "a complimentary souvenir photo",
+            False,
+        ),
+    ],
+)
+def test_trailing_clause_seam_is_rejected(after: str, span: str, rejected: bool) -> None:
+    before = clean_en().model_copy(update={"description": _G2_BEFORE})
+    new = before.model_copy(update={"description": after})
+    problems = trailing_clause_problems(before, new, [Span(field="description", span=span)])
+    assert bool(problems) is rejected
+    if rejected:
+        assert "own sentence" in problems[0]
+
+
+def test_trailing_clause_check_runs_in_verification() -> None:
+    before = clean_en().model_copy(update={"description": _G2_BEFORE})
+    after = _G2_BEFORE.replace(
+        "confident swimmers.", "confident swimmers, and all entrance fees are included."
+    )
+    from wanderlint.datagen.inject import Injection
+
+    inj = Injection(
+        before.model_copy(update={"description": after}),
+        [Span(field="description", span="all entrance fees are included")],
+        "ticket_promised",
+    )
+    errors = verify_injection(before, inj, "D4", [], set(), CTX, detectable=False)
+    assert any("appended to an existing sentence" in e for e in errors)
+
+
+@pytest.mark.parametrize(
+    "variant", ["time_format", "date_format", "number_format", "price", "price_other_format"]
+)
+def test_format_variants_span_the_token_only(variant: str) -> None:
+    listing = clean_en()
+    spec = DefectSpec(defect_id="D5", method="llm", variant=variant)
+    edit = llm_edit_for(spec, listing, random.Random(0))
+    assert edit.max_span_words == 3 and "itself" in edit.instruction
+    promo = llm_edit_for(
+        DefectSpec(defect_id="D6", method="llm", variant="promo"), listing, random.Random(0)
+    )
+    assert promo.max_span_words == 8

@@ -18,6 +18,7 @@ from wanderlint.datagen.vocab import (
     QUALITY_WEIGHTS,
     REGISTERED_OK_CATEGORIES,
     TIME_VARIANTS,
+    TRAP_ACRONYMS,
     TRAP_KINDS,
     VARIANTS,
     Method,
@@ -75,9 +76,11 @@ class PlanConfig:
 
 def _trap_detail(kind: str, locale: str, category: str, rng: random.Random) -> str:
     if kind == "title_acronym_or_registered":
+        # "acronym:A|B|C" lists the claim-free acronyms allowed for this category.
+        acronym = "acronym:" + "|".join(TRAP_ACRONYMS[category])
         if category not in REGISTERED_OK_CATEGORIES:
-            return "acronym"
-        return rng.choice(["registered", "acronym"])
+            return acronym
+        return rng.choice(["registered", acronym])
     if kind == "fee_in_cancellation":
         return rng.choice(FEE_FORMATS[locale])
     if kind == "locale_variant":

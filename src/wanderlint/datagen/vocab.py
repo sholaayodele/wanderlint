@@ -301,6 +301,112 @@ REGISTERED_OK_CATEGORIES = {
     "Tours & Sightseeing",
     "Food & Drink",
 }
+# Acronym trap (datagen v3): claim-free acronyms that name the activity itself (equipment,
+# vehicle, format, era). No status, rank or perk acronyms: those are claims (UNESCO, VIP)
+# or promises (BBQ) that a clean listing would have to back up.
+TRAP_ACRONYMS: dict[str, list[str]] = {
+    "Tours & Sightseeing": ["GPS", "WWII", "3D"],
+    "Museums & Exhibitions": ["3D", "VR", "WWII"],
+    "Attractions & Tickets": ["VR", "3D", "4D"],
+    "Food & Drink": ["IPA", "DIY"],
+    "Outdoor & Adventure": ["4WD", "SUP", "GPS", "MTB"],
+    "Water Activities": ["SUP", "RIB"],
+    "Day Trips": ["4WD", "WWII", "GPS"],
+    "Shows & Performances": ["DJ", "LED", "3D"],
+    "Classes & Workshops": ["DIY", "DJ", "3D"],
+    "Nightlife": ["DJ", "IPA"],
+    "Wellness": ["SUP", "DIY"],
+    "Transfers & Transport": ["SUV", "EV", "GPS"],
+}
+CLAIM_ACRONYMS = {"UNESCO", "VIP", "BBQ", "TOP", "NO1", "NR1", "BEST", "VIC"}
+# Datagen v4. Things a customer receives, grouped so synonyms match (labeling_guide: synonyms
+# count as listed). Used to keep D4 promises clear of inclusions/exclusions and to stop
+# claims from smuggling in a receivable item. Case-insensitive regex fragments.
+RECEIVABLE_GROUPS: dict[str, list[str]] = {
+    "food": [
+        r"food",
+        r"lunch",
+        r"dinner",
+        r"breakfast",
+        r"brunch",
+        r"meals?",
+        r"snacks?",
+        r"pastr(?:y|ies)",
+        r"picnic",
+        r"tapas",
+        r"essen",
+        r"mittagessen",
+        r"abendessen",
+        r"frühstück",
+        r"verpflegung",
+        r"mahlzeit\w*",
+        r"imbiss",
+        r"gebäck",
+        r"picknick",
+    ],
+    "drinks": [
+        r"drinks?",
+        r"beverages?",
+        r"wines?",
+        r"beers?",
+        r"coffee",
+        r"tea",
+        r"prosecco",
+        r"champagne",
+        r"cocktails?",
+        r"getränk\w*",
+        r"wein\w*",
+        r"bier\w*",
+        r"kaffee",
+        r"tee",
+        r"sekt",
+    ],
+    "tickets": [
+        # admission tickets only; a ferry/train/bus ticket is transport
+        r"(?<!ferry )(?<!train )(?<!boat )(?<!bus )(?<!rail )(?<!metro )tickets?",
+        r"admission",
+        r"entry",
+        r"entrance fees?",
+        r"eintritt\w*",
+        r"eintrittskarte\w*",
+    ],
+    "transport": [
+        r"transport\w*",
+        r"transfers?",
+        r"train tickets?",
+        r"ferry",
+        r"boat transfer",
+        r"bus",
+        r"zugticket\w*",
+        r"bahnticket\w*",
+        r"fähre",
+        r"anreise",
+        r"rückfahrt",
+        r"hin- und rückfahrt",
+    ],
+    "pickup": [r"pick-?up", r"hotel", r"abholung", r"abgeholt", r"hoteltransfer"],
+    "guide": [
+        r"(?<!audio )(?<!audio-)(?<!exhibition )guides?",
+        r"guided",
+        r"guiding",
+        r"reiseleit\w*",
+        r"(?<!audio)führung\w*",
+        r"geführt\w*",
+        r"tourguide",
+        r"instructors?",
+        r"kursleit\w*",
+    ],
+}
+# Claims about the customer's group only make sense when a person runs the experience.
+GROUP_CLAIMS = {"private", "small_group"}
+# Categories that are tickets, entries or self-guided products by default.
+SELF_GUIDED_CATEGORIES = {
+    "Attractions & Tickets",
+    "Museums & Exhibitions",
+    "Shows & Performances",
+    "Wellness",
+    "Transfers & Transport",
+}
 LOREM = [
     "Lorem ipsum dolor sit amet.",
     "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",

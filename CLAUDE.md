@@ -203,6 +203,7 @@ wanderlint/
     datagen/                  # synthetic data: vocab, plan (seeded specs), checks, inject, run
   scripts/
     generate_listings.py
+    audit_generated.py        # re-checks seeded data (claims, D4 overlap, seams, spans)
     label_app.py              # Streamlit labeling tool
     kappa.py
   reports/                    # {date}_{prompt_version}_{split}.md (+ .json)
@@ -287,6 +288,7 @@ make format                                          # ruff format
 
 uv run python scripts/generate_listings.py --n 10 --seed 42 --dry-run   # plan + estimate, no API
 uv run python scripts/generate_listings.py --n 150 --seed 42 --yes      # > 20 listings needs --yes
+uv run python scripts/audit_generated.py                                 # deterministic audit of generated data
 uv run streamlit run scripts/label_app.py
 uv run python scripts/kappa.py
 

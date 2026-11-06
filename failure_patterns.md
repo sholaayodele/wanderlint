@@ -89,3 +89,48 @@ fixes, and taxonomy/prompt version changes.
      leave phrasing to the model.
   Note: the claim instruction text lives in code (datagen/inject.py), so re-running v1 would
   not hit the v1 cache; v1 outputs are preserved only in the pilot record.
+- 2026-11-05 — datagen prompts v3 (`datagen_listing_v3`, `datagen_inject_v3`), from the v2 pilot
+  review (reports/datagen/pilot_v2_live_run.json):
+  1. Acronym trap without claims: the plan names claim-free acronyms per category
+     (`TRAP_ACRONYMS`: SUP, 4WD, 3D, DJ, …); the trap only counts if one of them is in the title
+     and no status/perk acronym (UNESCO, VIP, BBQ) is. v2 produced "UNESCO Wetlands … near
+     Athens" on a clean listing — a false status claim, i.e. a hidden D3. Listing prompt rule 11
+     forbids unbacked status/perk labels.
+  2. D3 (and D2/D3 hard-case) claims must name the feature explicitly: each claim key has
+     per-locale terms ("private tour", "skip-the-line", "Kleingruppe", …) and a span must
+     contain one. v2 produced "This private visit…" on a museum ticket, readable as not a claim.
+  3. Spans for claims, promises and prices ≤ 8 words (was 12); D4 spans cover only the item
+     inclusions don't list (v2 spanned "a hot drink and a glass of local wine" with the hot
+     drink included). The limit lives in code (`LLMEdit.max_span_words`), so re-running v2
+     verification would use 8.
+- 2026-11-06 — datagen prompts v4 (`datagen_inject_v4`; `datagen_listing_v4` unchanged from v3),
+  from the v3 pilot review (reports/datagen/pilot_v3_live_run.json):
+  1. Claims compatible with the product: private / small-group claims only for products run by a
+     guide or instructor (not in self-guided categories and a person guide in inclusions;
+     audio/exhibition guides don't count). "private guided" removed from accepted terms. Claim
+     edits are rejected if they add a receivable (guide, food, drinks, transport, pickup).
+     v3 produced "a private guided visit for your party" on a museum ticket: an unseeded D4
+     (guide not included) plus a likely D2 ("at your own pace").
+  2. D4 safety: promised items whose receivable group (synonym match: drinks ⊇ wine/beer/coffee,
+     food ⊇ lunch/snacks, …) overlaps inclusions or exclusions are not used; if none is left the
+     defect falls back to another D4 variant. The model's span is checked the same way. v3
+     promised "a glass of local wine" with "Lunch and drinks" excluded — that is D2, not D4.
+  3. Two seeded edits in one field must be in different sentences (verification check + the
+     prompt lists earlier changed excerpts). v3: "…enjoy the island scenery, and you receive a
+     souvenir photo of the day" chained onto the wine sentence.
+- 2026-11-06 — datagen prompts v5 (`datagen_inject_v5`; `datagen_listing_v5` unchanged from v4),
+  from the v4 pilot review (reports/datagen/pilot_v4_live_run.json):
+  1. Trailing-clause seams rejected in verification: a span may not sit in a tail appended to an
+     otherwise unchanged original sentence; the retry feedback asks for its own sentence or a
+     rewritten on-topic sentence. v4: 3 of 5 LLM edits were tails, one a clear non-sequitur
+     ("…suits beginners as well as confident swimmers, and all entrance fees are included").
+     Labeling can't repair listing text, so this is enforced at generation. Root cause: the
+     "smallest edit" wording.
+  2. Inject prompt: "smallest edit" → "most natural edit"; promises/claims get their own sentence
+     or an on-topic rewritten sentence.
+  3. Format variants (D5 time/date/number/currency, D6 price/price_other_format) are spanned as
+     the token only (≤ 3 words); promo wording keeps ≤ 8.
+  Meta rows now keep the pre-injection listing (`pre_injection`) so seams can be audited later.
+  Pilot v5 finding: the receivable matcher counted "Return high-speed ferry ticket" as an
+  admission ticket, so every D4 variant was blocked and one D4 dropped. Ferry/train/boat/bus/
+  rail/metro tickets now count as transport only (code fix, prompts unchanged).

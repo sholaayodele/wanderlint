@@ -31,6 +31,7 @@ from wanderlint.datagen.vocab import (
     NA_TOKEN,
     QUALITIES,
     STR_ATTRIBUTES,
+    VARIANTS,
 )
 from wanderlint.llm import LLMClient, LLMError
 from wanderlint.models import GoldLabel, Listing, Span, Taxonomy
@@ -66,6 +67,7 @@ class Failure:
 class ListingResult:
     spec: ListingSpec
     listing: Listing | None = None
+    clean: Listing | None = None  # pre-injection listing, kept for audits
     labels: list[GoldLabel] = field(default_factory=list)
     applied: list[dict[str, Any]] = field(default_factory=list)
     failed_defects: list[dict[str, Any]] = field(default_factory=list)
@@ -117,9 +119,14 @@ def trap_instruction(trap: TrapSpec, locale: str) -> str:
                 "brand of that kind). Never put ® on a public place, natural site, city, street "
                 "or generic museum name."
             )
+        options = d.removeprefix("acronym:").split("|") if d.startswith("acronym:") else []
         return (
-            "The title contains a genuine short acronym in capitals (e.g. VIP, BBQ, UNESCO, or a "
-            "2-4 letter venue abbreviation); the rest of the title is in normal case."
+            "The title contains exactly one of these acronyms, in capitals, whichever fits the "
+            f"activity best: {', '.join(options)}. It names the activity itself (equipment, "
+            "vehicle, format or era), and the description must match it; if it names equipment "
+            "or a vehicle the customer uses, list that in inclusions. No status, rank or perk "
+            "acronyms anywhere in the title (no UNESCO, VIP, BBQ). The rest of the title is in "
+            "normal case."
         )
     if k == "fee_in_cancellation":
         return (
@@ -294,7 +301,12 @@ def generate_clean(
 
 
 def _inject_user_prompt(
-    listing: Listing, spec: ListingSpec, instruction: str, editable: list[str], feedback: list[str]
+    listing: Listing,
+    spec: ListingSpec,
+    instruction: str,
+    editable: list[str],
+    feedback: list[str],
+    prior_spans: list[Span] | None = None,
 ) -> str:
     lines = [
         "LISTING",
@@ -307,6 +319,10 @@ def _inject_user_prompt(
         "",
         f"You may edit only these fields: {', '.join(editable)}.",
     ]
+    earlier = [s for s in prior_spans or [] if s.field in editable and s.span.strip()]
+    if earlier:
+        lines += ["", "Already changed (keep verbatim; put your change in a different sentence):"]
+        lines += [f"- {s.field}: {s.span!r}" for s in earlier]
     if feedback:
         lines += ["", "Your previous attempt was rejected for these reasons. Fix them:"]
         lines += [f"- {e}" for e in feedback]
@@ -330,11 +346,20 @@ def inject_llm(
     failures: list[Failure],
     seed: int,
 ) -> Injection | None:
-    rng = random.Random(f"{seed}|{spec.id}|{dspec.defect_id}|{dspec.variant}")
-    try:
-        edit = llm_edit_for(dspec, listing, rng)
-    except CannotInject as e:
-        failures.append(Failure(spec.id, "inject", 0, [str(e)], dspec.defect_id))
+    # Planned variant first; if it can't apply to this listing (e.g. every D4 item overlaps
+    # inclusions/exclusions), try the type's other LLM variants. Hard cases never fall back.
+    variants = [dspec.variant]
+    if dspec.hard_case is None:
+        variants += [v for m, v in VARIANTS[dspec.defect_id] if m == "llm" and v != dspec.variant]
+    edit = None
+    for variant in variants:
+        rng = random.Random(f"{seed}|{spec.id}|{dspec.defect_id}|{variant}")
+        try:
+            edit = llm_edit_for(dspec.model_copy(update={"variant": variant}), listing, rng)
+            break
+        except CannotInject as e:
+            failures.append(Failure(spec.id, "inject", 0, [f"{variant}: {e}"], dspec.defect_id))
+    if edit is None:
         return None
     feedback: list[str] = []
     for attempt in range(settings.max_retries + 1):
@@ -344,7 +369,9 @@ def inject_llm(
                 prompt_version=settings.prompt_version,
                 model=settings.model,
                 system=prompts.inject_system,
-                user=_inject_user_prompt(listing, spec, edit.instruction, edit.editable, feedback),
+                user=_inject_user_prompt(
+                    listing, spec, edit.instruction, edit.editable, feedback, prior_spans
+                ),
                 schema=inject_schema(edit.editable),
                 max_tokens=settings.max_tokens,
                 effort=settings.effort,
@@ -354,7 +381,7 @@ def inject_llm(
             failures.append(Failure(spec.id, "inject", attempt, [str(e)], dspec.defect_id))
             feedback = [str(e)]
             continue
-        inj, errors = apply_llm_edit(listing, edit, result.data, dspec.variant)
+        inj, errors = apply_llm_edit(listing, edit, result.data, variant)
         errors += verify_injection(
             listing,
             inj,
@@ -362,7 +389,7 @@ def inject_llm(
             prior_spans,
             allowed,
             ctx,
-            detectable=llm_variant_detectable(dspec.variant),
+            detectable=llm_variant_detectable(variant),
         )
         if not errors:
             inj.detail["instruction"] = edit.instruction
@@ -382,7 +409,7 @@ def inject_defects(
     failures: list[Failure],
     seed: int,
 ) -> ListingResult:
-    res = ListingResult(spec=spec)
+    res = ListingResult(spec=spec, clean=clean)
     listing = clean
     spans_so_far: list[Span] = []
     allowed: set[str] = set()
@@ -507,6 +534,7 @@ def meta_row(res: ListingResult) -> dict[str, Any]:
         "seeded": res.applied,
         "failed_defects": res.failed_defects,
         "generation_attempts": res.generation_attempts,
+        "pre_injection": res.clean.model_dump() if res.clean and res.labels else None,
     }
 
 

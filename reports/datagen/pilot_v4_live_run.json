@@ -1,0 +1,233 @@
+{
+  "summary": {
+    "listings_planned": 10,
+    "listings_generated": 10,
+    "clean_listings": 4,
+    "per_locale": {
+      "en-GB": 7,
+      "de-DE": 3
+    },
+    "per_category": {
+      "Shows & Performances": 1,
+      "Water Activities": 1,
+      "Tours & Sightseeing": 1,
+      "Attractions & Tickets": 1,
+      "Outdoor & Adventure": 1,
+      "Nightlife": 1,
+      "Museums & Exhibitions": 1,
+      "Day Trips": 1,
+      "Food & Drink": 1,
+      "Classes & Workshops": 1
+    },
+    "per_defect": {
+      "D1": 2,
+      "D2": 1,
+      "D3": 1,
+      "D4": 1,
+      "D5": 1,
+      "D6": 1,
+      "D7": 1,
+      "D8": 1
+    },
+    "seeded_total": 9,
+    "hard_cases": 2,
+    "hard_cases_by_pair": {
+      "D2/D4": 1,
+      "D1/D8": 1
+    },
+    "traps_clean": {
+      "fee_in_cancellation": 1,
+      "street_address_meeting_point": 2,
+      "locale_variant": 1,
+      "short_in_description": 1,
+      "title_acronym_or_registered": 1
+    },
+    "traps_defective": {
+      "na_in_sentence": 1,
+      "fee_in_cancellation": 1
+    },
+    "defective_with_traps": 2,
+    "failed_defects": 0,
+    "failure_events": 2,
+    "api_calls": 15,
+    "cached_calls": 0,
+    "cost_eur_total": 0.1278,
+    "cost_eur_per_listing": 0.0128,
+    "tokens_per_call": {
+      "generate": {
+        "calls": 10,
+        "avg_input": 392.8,
+        "avg_cache_read": 1764.0,
+        "avg_cache_write": 196.0,
+        "avg_output": 849.6,
+        "avg_cost_eur": 0.00911,
+        "avg_latency_s": 7.7
+      },
+      "inject": {
+        "calls": 5,
+        "avg_input": 910.0,
+        "avg_cache_read": 700.8,
+        "avg_cache_write": 1084.0,
+        "avg_output": 347.4,
+        "avg_cost_eur": 0.00733,
+        "avg_latency_s": 3.9
+      }
+    },
+    "n": 10,
+    "seed": 42,
+    "model": "claude-sonnet-5-5",
+    "stopped": null
+  },
+  "calls": [
+    {
+      "purpose": "generate:gen-0001",
+      "cached": false,
+      "cost_eur": 0.012991,
+      "latency_s": 10.15,
+      "input_tokens": 457,
+      "output_tokens": 862,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 1960
+    },
+    {
+      "purpose": "generate:gen-0002",
+      "cached": false,
+      "cost_eur": 0.007169,
+      "latency_s": 6.16,
+      "input_tokens": 392,
+      "output_tokens": 679,
+      "cache_read_input_tokens": 1960,
+      "cache_creation_input_tokens": 0
+    },
+    {
+      "purpose": "inject:gen-0002:D2",
+      "cached": false,
+      "cost_eur": 0.009817,
+      "latency_s": 5.35,
+      "input_tokens": 889,
+      "output_tokens": 435,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 1912
+    },
+    {
+      "purpose": "inject:gen-0002:D4",
+      "cached": false,
+      "cost_eur": 0.009023,
+      "latency_s": 5.07,
+      "input_tokens": 983,
+      "output_tokens": 368,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 1752
+    },
+    {
+      "purpose": "generate:gen-0003",
+      "cached": false,
+      "cost_eur": 0.011799,
+      "latency_s": 10.51,
+      "input_tokens": 369,
+      "output_tokens": 1198,
+      "cache_read_input_tokens": 1960,
+      "cache_creation_input_tokens": 0
+    },
+    {
+      "purpose": "generate:gen-0004",
+      "cached": false,
+      "cost_eur": 0.00752,
+      "latency_s": 7.11,
+      "input_tokens": 362,
+      "output_tokens": 724,
+      "cache_read_input_tokens": 1960,
+      "cache_creation_input_tokens": 0
+    },
+    {
+      "purpose": "generate:gen-0005",
+      "cached": false,
+      "cost_eur": 0.005481,
+      "latency_s": 4.16,
+      "input_tokens": 574,
+      "output_tokens": 455,
+      "cache_read_input_tokens": 1960,
+      "cache_creation_input_tokens": 0
+    },
+    {
+      "purpose": "generate:gen-0006",
+      "cached": false,
+      "cost_eur": 0.008177,
+      "latency_s": 7.17,
+      "input_tokens": 382,
+      "output_tokens": 793,
+      "cache_read_input_tokens": 1960,
+      "cache_creation_input_tokens": 0
+    },
+    {
+      "purpose": "inject:gen-0006:D5",
+      "cached": false,
+      "cost_eur": 0.01035,
+      "latency_s": 4.4,
+      "input_tokens": 990,
+      "output_tokens": 513,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 1756
+    },
+    {
+      "purpose": "generate:gen-0007",
+      "cached": false,
+      "cost_eur": 0.006241,
+      "latency_s": 5.77,
+      "input_tokens": 301,
+      "output_tokens": 594,
+      "cache_read_input_tokens": 1960,
+      "cache_creation_input_tokens": 0
+    },
+    {
+      "purpose": "inject:gen-0007:D3",
+      "cached": false,
+      "cost_eur": 0.004706,
+      "latency_s": 3.11,
+      "input_tokens": 884,
+      "output_tokens": 311,
+      "cache_read_input_tokens": 1752,
+      "cache_creation_input_tokens": 0
+    },
+    {
+      "purpose": "inject:gen-0007:D6",
+      "cached": false,
+      "cost_eur": 0.002753,
+      "latency_s": 1.5,
+      "input_tokens": 804,
+      "output_tokens": 110,
+      "cache_read_input_tokens": 1752,
+      "cache_creation_input_tokens": 0
+    },
+    {
+      "purpose": "generate:gen-0008",
+      "cached": false,
+      "cost_eur": 0.008309,
+      "latency_s": 6.39,
+      "input_tokens": 415,
+      "output_tokens": 801,
+      "cache_read_input_tokens": 1960,
+      "cache_creation_input_tokens": 0
+    },
+    {
+      "purpose": "generate:gen-0009",
+      "cached": false,
+      "cost_eur": 0.011383,
+      "latency_s": 9.37,
+      "input_tokens": 358,
+      "output_tokens": 1154,
+      "cache_read_input_tokens": 1960,
+      "cache_creation_input_tokens": 0
+    },
+    {
+      "purpose": "generate:gen-0010",
+      "cached": false,
+      "cost_eur": 0.012049,
+      "latency_s": 9.96,
+      "input_tokens": 318,
+      "output_tokens": 1236,
+      "cache_read_input_tokens": 1960,
+      "cache_creation_input_tokens": 0
+    }
+  ]
+}

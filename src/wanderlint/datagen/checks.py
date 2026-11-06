@@ -15,9 +15,11 @@ import unicodedata
 from dataclasses import dataclass
 
 from wanderlint.datagen.vocab import (
+    CLAIM_ACRONYMS,
     FEE_FORMATS,
     NA_TOKEN,
     PRICE_FIELDS,
+    RECEIVABLE_GROUPS,
     REQUIRED_TEXT_FIELDS,
     TEXT_FIELDS,
 )
@@ -272,6 +274,12 @@ def trap_present(kind: str, detail: str, listing: Listing, ctx: CheckContext) ->
     if kind == "title_acronym_or_registered":
         if detail == "registered":
             return "®" in listing.title
+        cores = [_strip_punct(t) for t in listing.title.split()]
+        if detail.startswith("acronym:"):
+            allowed = set(detail.removeprefix("acronym:").split("|"))
+            if any(c.upper() in CLAIM_ACRONYMS for c in cores if c.isupper()):
+                return False  # status/perk acronym = a claim the listing must back up
+            return any(c in allowed for c in cores)
         for token in listing.title.split():
             core = _strip_punct(token)
             letters = [c for c in core if c.isalpha()]
@@ -329,3 +337,33 @@ def span_present(listing: Listing, span: Span) -> bool:
         value = getattr(listing, f)
         return value.strip() == "" if span.span == "" else span.span in value
     return False
+
+
+_RECEIVABLE_RE = {
+    g: re.compile(r"\b(?:" + "|".join(parts) + r")\b", re.IGNORECASE)
+    for g, parts in RECEIVABLE_GROUPS.items()
+}
+
+
+def receivable_counts(text: str) -> dict[str, int]:
+    """Number of mentions per receivable group (food, drinks, tickets, transport, pickup, guide)."""
+    return {g: len(r.findall(text)) for g, r in _RECEIVABLE_RE.items()}
+
+
+def receivable_groups(text: str) -> set[str]:
+    return {g for g, n in receivable_counts(text).items() if n}
+
+
+def has_person_guide(listing: Listing) -> bool:
+    """A guide/instructor is listed in inclusions (an audio or exhibition guide doesn't count)."""
+    return any("guide" in receivable_groups(item) for item in listing.inclusions)
+
+
+def sentence_of(text: str, span: str) -> list[str]:
+    """Sentences (within paragraphs) of `text` that contain `span`."""
+    out = []
+    for para in text.split("\n"):
+        for sent in re.split(r"(?<=[.!?])\s+", para.strip()):
+            if span and span in sent:
+                out.append(sent)
+    return out

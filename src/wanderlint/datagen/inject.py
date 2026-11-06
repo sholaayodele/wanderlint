@@ -13,7 +13,16 @@ import unicodedata
 from dataclasses import dataclass, field
 from typing import Any
 
-from wanderlint.datagen.checks import CheckContext, find_issues, rstrip_punct, span_present
+from wanderlint.datagen.checks import (
+    CheckContext,
+    find_issues,
+    has_person_guide,
+    receivable_counts,
+    receivable_groups,
+    rstrip_punct,
+    sentence_of,
+    span_present,
+)
 from wanderlint.datagen.plan import DefectSpec
 from wanderlint.datagen.vocab import (
     AUDIENCE_TAGS,
@@ -22,6 +31,7 @@ from wanderlint.datagen.vocab import (
     CONTACT_PHRASES,
     CONTACTS,
     EMOJI,
+    GROUP_CLAIMS,
     LIST_FIELDS,
     LONG_TITLE_SUFFIXES,
     LOREM,
@@ -34,6 +44,7 @@ from wanderlint.datagen.vocab import (
     REFERENCE_PLACEHOLDERS,
     REPEATED_PUNCT,
     REQUIRED_TEXT_FIELDS,
+    SELF_GUIDED_CATEGORIES,
     TEXT_FIELDS,
     VARIANTS,
     WRONG_TAGS,
@@ -314,6 +325,56 @@ def apply_rule_variant(
     raise ValueError(f"no rule injector for {defect_id}")
 
 
+def same_sentence_problems(
+    listing: Listing, new_spans: list[Span], prior_spans: list[Span]
+) -> list[str]:
+    """Two seeded edits in one text field must sit in different sentences (no chained seams)."""
+    problems = []
+    for s in new_spans:
+        if s.field not in TEXT_FIELDS or not s.span.strip():
+            continue
+        text = getattr(listing, s.field)
+        for p in prior_spans:
+            if p.field != s.field or not p.span.strip() or p.span in s.span or s.span in p.span:
+                continue
+            if any(p.span in sent for sent in sentence_of(text, s.span)):
+                problems.append(
+                    f"{s.field}: {s.span!r} is in the same sentence as an earlier change "
+                    f"({p.span!r}); put it in a different sentence"
+                )
+    return problems
+
+
+def _sentences(text: str) -> list[str]:
+    return [s for para in text.split("\n") for s in split_sentences(para)]
+
+
+def trailing_clause_problems(before: Listing, after: Listing, spans: list[Span]) -> list[str]:
+    """Reject a change bolted onto the end of an original sentence as a trailing clause
+    ("…confident swimmers, and all entrance fees are included."). A span must be in its own
+    sentence or in a sentence that was rewritten, not in a tail added to an unchanged one."""
+    problems = []
+    for s in spans:
+        if s.field not in TEXT_FIELDS or not s.span.strip():
+            continue
+        originals = [
+            re.sub(r"[.!?…]+$", "", o).rstrip() for o in _sentences(getattr(before, s.field))
+        ]
+        for sent in sentence_of(getattr(after, s.field), s.span):
+            for core in originals:
+                if len(core) < 15 or not sent.startswith(core) or sent == core:
+                    continue
+                tail = sent[len(core) :]
+                if s.span in tail and s.span not in core:
+                    problems.append(
+                        f"{s.field}: {s.span!r} is a clause appended to an existing sentence "
+                        f"({core[-40:]!r} + {tail.strip()[:50]!r}); write it as its own sentence, "
+                        "or rewrite a sentence about that topic so the change belongs there"
+                    )
+                    break
+    return problems
+
+
 def verify_injection(
     before: Listing,
     inj: Injection,
@@ -334,6 +395,8 @@ def verify_injection(
     for s in prior_spans:
         if not span_present(inj.listing, s):
             errors.append(f"earlier span destroyed in {s.field}: {s.span!r}")
+    errors += same_sentence_problems(inj.listing, inj.spans, prior_spans)
+    errors += trailing_clause_problems(before, inj.listing, inj.spans)
     issue_types = {i.defect_id for i in find_issues(inj.listing, ctx)}
     unexpected = issue_types - allowed_types - {defect_id}
     if unexpected:
@@ -403,6 +466,59 @@ _CLAIMS = {
     "official": ("being the official tour of the attraction or city", []),
     "number_one": ("being the No. 1 / best-rated experience in the city", []),
 }
+# v3: the claim must name the feature explicitly. A span must contain one of these terms
+# (case-insensitive), the first one is the suggested wording.
+_CLAIM_TERMS: dict[str, dict[str, list[str]]] = {
+    "small_group": {
+        "en-GB": ["small group", "small-group"],
+        "de-DE": ["Kleingruppe", "kleine Gruppe", "kleinen Gruppe"],
+    },
+    "skip_the_line": {
+        "en-GB": ["skip-the-line", "skip the line", "priority entry", "fast-track entry"],
+        "de-DE": ["ohne Anstehen", "bevorzugter Einlass", "bevorzugten Einlass"],
+    },
+    "private": {
+        "en-GB": ["private tour", "private group", "private experience"],
+        "de-DE": ["Privatführung", "private Führung", "privaten Führung", "Privattour"],
+    },
+    "wheelchair_accessible": {
+        "en-GB": ["wheelchair accessible", "wheelchair-accessible"],
+        "de-DE": ["rollstuhlgerecht", "barrierefrei", "rollstuhlzugänglich"],
+    },
+    "official": {"en-GB": ["official"], "de-DE": ["offizielle", "offiziell"]},
+    "number_one": {
+        "en-GB": ["No. 1", "number one", "best-rated", "top-rated"],
+        "de-DE": ["Nr. 1", "Nummer 1", "bestbewertete", "bestbewerteten"],
+    },
+    "guaranteed": {"en-GB": ["guaranteed"], "de-DE": ["garantiert"]},
+}
+
+
+def _claim_instruction(claim: str, terms: list[str]) -> str:
+    variants = ", ".join(repr(t) for t in terms[1:])
+    alt = f" (or {variants})" if variants else ""
+    return (
+        f"Work in the feature claim: {claim}. Name the feature explicitly with the wording "
+        f"{terms[0]!r}{alt}, so a reader cannot take it any other way. Write it as this "
+        "supplier's own marketing copy would phrase it. The span must contain that wording. "
+        "The claim is about how the experience is run, nothing more: do not add a guide, "
+        "food, drinks, tickets, transport, pickup or anything else the customer receives."
+    )
+
+
+def claim_keys(listing: Listing, keys: list[str]) -> list[str]:
+    """Group claims (private, small group) only for products run by a guide/instructor."""
+    guided = listing.category not in SELF_GUIDED_CATEGORIES and has_person_guide(listing)
+    return [k for k in keys if guided or k not in GROUP_CLAIMS]
+
+
+def d4_items(listing: Listing, items: list[str]) -> list[str]:
+    """Items whose receivable groups overlap neither inclusions (already listed, by synonym)
+    nor exclusions (that would be D2)."""
+    taken = set().union(*(receivable_groups(i) for i in listing.inclusions + listing.exclusions))
+    return [i for i in items if receivable_groups(i) and not receivable_groups(i) & taken]
+
+
 _D4_ITEMS = {
     "food_promised": ["lunch", "a three-course dinner", "breakfast", "local snacks along the way"],
     "drink_promised": ["a glass of local wine", "a welcome drink", "drinks", "coffee and pastries"],
@@ -446,6 +562,17 @@ _EXAMPLES = {
 }
 
 
+# v5: format variants are spanned as the token only (≤ 3 words).
+_TOKEN_EXAMPLES = {
+    "time_format": {"de-DE": "2:30 pm", "en-GB": "20 Uhr"},
+    "date_format": {"de-DE": "24 December 2026", "en-GB": "24.12.2026"},
+    "currency_in_cancellation": {"de-DE": "€15", "en-GB": "15 €"},
+    "number_format": {"de-DE": "1,250 metres", "en-GB": "1.250,5 metres"},
+    "price": {"de-DE": "ab 39 €", "en-GB": "only €39"},
+    "price_other_format": {"de-DE": "only €39", "en-GB": "ab 39 €"},
+}
+
+
 @dataclass(frozen=True)
 class LLMEdit:
     instruction: str
@@ -454,7 +581,10 @@ class LLMEdit:
     set_attributes: dict[str, bool | str] = field(default_factory=dict)
     delete_attributes: list[str] = field(default_factory=list)
     extra_spans: list[Span] = field(default_factory=list)
-    max_span_words: int = 12
+    max_span_words: int = 8
+    required_span_terms: list[str] = field(default_factory=list)
+    no_new_receivables: bool = False  # claims must not add a guide/food/drinks/…
+    check_listed_overlap: bool = False  # D4: promised span must not match inclusions/exclusions
 
 
 def llm_edit_for(spec: DefectSpec, listing: Listing, rng: random.Random) -> LLMEdit:
@@ -487,15 +617,19 @@ def llm_edit_for(spec: DefectSpec, listing: Listing, rng: random.Random) -> LLME
             extra_spans=[Span(field="inclusions", span=item)],
         )
     if v == "claim_vs_attribute":
-        key = rng.choice(["small_group", "skip_the_line", "private", "wheelchair_accessible"])
+        key = rng.choice(
+            claim_keys(
+                listing, ["small_group", "skip_the_line", "private", "wheelchair_accessible"]
+            )
+        )
         claim, _ = _CLAIMS[key]
+        terms = _CLAIM_TERMS[key][loc]
         set_attrs: dict[str, bool | str] = {key: False}
         extra = [Span(field=f"attributes.{key}", span="false")]
         return LLMEdit(
-            instruction=(
-                f"Work in the feature claim: {claim}. Write it as this supplier's own marketing "
-                "copy would phrase it."
-            ),
+            instruction=_claim_instruction(claim, terms),
+            required_span_terms=terms,
+            no_new_receivables=True,
             editable=copy_fields,
             set_attributes=set_attrs,
             delete_attributes=["max_group_size"] if key == "small_group" else [],
@@ -514,30 +648,39 @@ def llm_edit_for(spec: DefectSpec, listing: Listing, rng: random.Random) -> LLME
             required_span_fields=["exclusions"],
         )
     if v == "unsupported_claim":
-        options = list(_CLAIMS)
+        options = claim_keys(listing, list(_CLAIMS))
         if "wildlife" in listing.description.lower() or "Wildlife" in listing.tags:
             options.append("guaranteed")
         key = rng.choice(options)
         claim, related = _CLAIMS.get(key, ("guaranteed wildlife sightings", []))
+        terms = _CLAIM_TERMS[key][loc]
         return LLMEdit(
             instruction=(
-                f"Work in the feature claim: {claim}. Write it as this supplier's own marketing "
-                "copy would phrase it. Nothing else in the listing may support or contradict it."
+                f"{_claim_instruction(claim, terms)} Nothing else in the listing may support or "
+                "contradict it."
             ),
+            required_span_terms=terms,
+            no_new_receivables=True,
             editable=copy_fields,
             delete_attributes=related,
         )
     if v in _D4_ITEMS:
-        item = rng.choice(_D4_ITEMS[v])
+        items = d4_items(listing, _D4_ITEMS[v])
+        if not items:
+            raise CannotInject(f"every {v} item overlaps inclusions or exclusions")
+        item = rng.choice(items)
         return LLMEdit(
             instruction=(
                 "Promise in the title, short_description or description that the customer "
                 f"receives "
                 f"{item} as part of the experience (stated as included, not optional or extra). It "
-                "must not already be covered by inclusions. Do not change inclusions or exclusions."
+                "must not already be covered by inclusions. Do not change inclusions or "
+                "exclusions. Span only the promised item that inclusions don't cover, not items "
+                "listed there."
             ),
             editable=copy_fields,
             delete_attributes=["hotel_pickup"] if v == "pickup_promised" else [],
+            check_listed_overlap=True,
         )
     if v == "untranslated_fragment":
         other = OTHER_LANGUAGE[loc]
@@ -580,7 +723,17 @@ def llm_edit_for(spec: DefectSpec, listing: Listing, rng: random.Random) -> LLME
             how = f"using the OTHER locale's currency format, for example {ex}"
         else:
             how = f"using the other locale's convention, for example {ex}, which is wrong for {loc}"
-        return LLMEdit(instruction=f"Add {what} {how}.", editable=fields)
+        if v == "promo":
+            return LLMEdit(instruction=f"Add {what} {how}.", editable=fields)
+        token = _TOKEN_EXAMPLES[v][loc]
+        return LLMEdit(
+            instruction=(
+                f"Add {what} {how}. The span is only the {what.removeprefix('a ')} itself, "
+                f"e.g. {token!r}, not the words around it."
+            ),
+            editable=fields,
+            max_span_words=3,
+        )
     raise ValueError(f"no LLM edit for variant {v!r}")
 
 
@@ -688,6 +841,42 @@ def apply_llm_edit(
                 f"span in {s.field} is {len(s.span.split())} words; give the shortest excerpt "
                 f"(at most {edit.max_span_words} words) that shows the problem"
             )
+    if edit.required_span_terms:
+        terms = [t.lower() for t in edit.required_span_terms]
+        if not any(t in s.span.lower() for s in spans for t in terms):
+            errors.append(
+                "the claim must name the feature explicitly; no span contains any of "
+                f"{edit.required_span_terms}"
+            )
+    if edit.no_new_receivables:
+        for f in update:
+            if f not in TEXT_FIELDS:
+                continue
+            before, after = (
+                _strip_terms(t, edit.required_span_terms) for t in (getattr(listing, f), update[f])
+            )
+            old_c, new_c = receivable_counts(before), receivable_counts(after)
+            added = sorted(g for g in new_c if new_c[g] > old_c[g])
+            if added:
+                errors.append(
+                    f"{f}: the claim adds something the customer receives ({', '.join(added)}); "
+                    "only state the feature claim"
+                )
+    if edit.check_listed_overlap:
+        listed = {
+            g: item
+            for item in listing.inclusions + listing.exclusions
+            for g in receivable_groups(item)
+        }
+        for s in spans:
+            if s.field in TEXT_FIELDS:
+                clash = receivable_groups(s.span) & set(listed)
+                if clash:
+                    g = sorted(clash)[0]
+                    errors.append(
+                        f"promised {s.span!r} overlaps the listed item {listed[g]!r} ({g}); "
+                        "promise something inclusions and exclusions don't mention"
+                    )
     edited = {f for f in update if f != "attributes"}
     if not any(s.field in edited for s in spans):
         errors.append("no span in an edited field")
@@ -700,6 +889,12 @@ def apply_llm_edit(
     extra_keys = {(s.field, s.span) for s in edit.extra_spans}
     spans = [s for s in spans if (s.field, s.span) not in extra_keys] + list(edit.extra_spans)
     return Injection(new_listing, spans, variant, {"edited_fields": sorted(edited)}), errors
+
+
+def _strip_terms(text: str, terms: list[str]) -> str:
+    for t in terms:
+        text = re.sub(re.escape(t), " ", text, flags=re.IGNORECASE)
+    return text
 
 
 def llm_variant_detectable(variant: str) -> bool:
