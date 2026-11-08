@@ -1,0 +1,163 @@
+{"listing_id":"gen-0001","defect_id":"D2","spans":[{"field":"description","span":"The car is wheelchair accessible and air-conditioned"},{"field":"attributes.wheelchair_accessible","span":"false"}],"label_source":"seeded"}
+{"listing_id":"gen-0002","defect_id":"D5","spans":[{"field":"description","span":"14 Uhr"}],"label_source":"seeded"}
+{"listing_id":"gen-0004","defect_id":"D2","spans":[{"field":"description","span":"A light lunch is served during the workshop."},{"field":"exclusions","span":"Lunch"}],"label_source":"seeded"}
+{"listing_id":"gen-0004","defect_id":"D4","spans":[{"field":"description","span":"Entry tickets to the Designmuseum Danmark are included"}],"label_source":"seeded"}
+{"listing_id":"gen-0006","defect_id":"D4","spans":[{"field":"description","span":"All entrance fees are included in the price."}],"label_source":"seeded"}
+{"listing_id":"gen-0008","defect_id":"D3","spans":[{"field":"description","span":"offizielle Weinverkostung der Stadt Budapest"}],"label_source":"seeded"}
+{"listing_id":"gen-0008","defect_id":"D4","spans":[{"field":"description","span":"Abholung von Ihrem Hotel"}],"label_source":"seeded"}
+{"listing_id":"gen-0008","defect_id":"D5","spans":[{"field":"cancellation_policy","span":"€15"}],"label_source":"seeded"}
+{"listing_id":"gen-0014","defect_id":"D8","spans":[{"field":"title","span":"Morning Yoga in the Park by Lake Zurich – See the City From a Completely New Perspective and Hear Its Local Stories"}],"label_source":"seeded"}
+{"listing_id":"gen-0015","defect_id":"D4","spans":[{"field":"description","span":"Museum admission is included."}],"label_source":"seeded"}
+{"listing_id":"gen-0015","defect_id":"D5","spans":[{"field":"cancellation_policy","span":"24.12.2026"}],"label_source":"seeded"}
+{"listing_id":"gen-0015","defect_id":"D8","spans":[{"field":"title","span":"SNORKELLING BOAT TRIP FROM PIOMBINO NEAR Florence"}],"label_source":"seeded"}
+{"listing_id":"gen-0018","defect_id":"D4","spans":[{"field":"description","span":"ein Frühstück im Parkcafé inklusive"}],"label_source":"seeded"}
+{"listing_id":"gen-0018","defect_id":"D1","spans":[{"field":"cancellation_policy","span":"FOLGT!!!"}],"label_source":"seeded"}
+{"listing_id":"gen-0018","defect_id":"D6","spans":[{"field":"meeting_point","span":"@erlebe.lyon"}],"label_source":"seeded"}
+{"listing_id":"gen-0019","defect_id":"D2","spans":[{"field":"short_description","span":"A relaxed two-hour introduction"},{"field":"duration","span":"4 hours"}],"label_source":"seeded"}
+{"listing_id":"gen-0020","defect_id":"D2","spans":[{"field":"description","span":"ein Glas italienischer Wein"},{"field":"exclusions","span":"Glas italienischer Wein"}],"label_source":"seeded"}
+{"listing_id":"gen-0020","defect_id":"D1","spans":[{"field":"meeting_point","span":"n. a.!!!"}],"label_source":"seeded"}
+{"listing_id":"gen-0024","defect_id":"D1","spans":[{"field":"meeting_point","span":"XXX"}],"label_source":"seeded"}
+{"listing_id":"gen-0025","defect_id":"D8","spans":[{"field":"short_description","span":"provided!?!"}],"label_source":"seeded"}
+{"listing_id":"gen-0027","defect_id":"D2","spans":[{"field":"description","span":"bevorzugten Einlass"},{"field":"attributes.skip_the_line","span":"false"}],"label_source":"seeded"}
+{"listing_id":"gen-0028","defect_id":"D2","spans":[{"field":"description","span":"relaxed 5-hour evening tour"},{"field":"duration","span":"3 hours"}],"label_source":"seeded"}
+{"listing_id":"gen-0028","defect_id":"D7","spans":[{"field":"tags","span":"Wine tasting"}],"label_source":"seeded"}
+{"listing_id":"gen-0029","defect_id":"D6","spans":[{"field":"short_description","span":"nur 59,00 €"}],"label_source":"seeded"}
+{"listing_id":"gen-0030","defect_id":"D3","spans":[{"field":"description","span":"skip-the-line entry at the park gate"}],"label_source":"seeded"}
+{"listing_id":"gen-0030","defect_id":"D7","spans":[{"field":"category","span":"Sightseeing Tours"}],"label_source":"seeded"}
+{"listing_id":"gen-0031","defect_id":"D2","spans":[{"field":"description","span":"available for an additional charge"},{"field":"inclusions","span":"Guided horse ride at the estancia"}],"label_source":"seeded"}
+{"listing_id":"gen-0031","defect_id":"D6","spans":[{"field":"short_description","span":"Book this week and enjoy 20% off"}],"label_source":"seeded"}
+{"listing_id":"gen-0035","defect_id":"D2","spans":[{"field":"short_description","span":"Spend three hours exploring"},{"field":"duration","span":"Full day (7 hours)"}],"label_source":"seeded"}
+{"listing_id":"gen-0035","defect_id":"D1","spans":[{"field":"cancellation_policy","span":""}],"label_source":"seeded"}
+{"listing_id":"gen-0035","defect_id":"D6","spans":[{"field":"meeting_point","span":"capetown.guide@gmail.com"}],"label_source":"seeded"}
+{"listing_id":"gen-0036","defect_id":"D6","spans":[{"field":"meeting_point","span":"+44 (0)7700 900123"}],"label_source":"seeded"}
+{"listing_id":"gen-0040","defect_id":"D7","spans":[{"field":"category","span":"Shows & Performances"}],"label_source":"seeded"}
+{"listing_id":"gen-0042","defect_id":"D2","spans":[{"field":"description","span":"A herbal tea is served after the class."},{"field":"exclusions","span":"Herbal tea after the class"}],"label_source":"seeded"}
+{"listing_id":"gen-0042","defect_id":"D3","spans":[{"field":"short_description","span":"The official yoga class of the Englischer Garten"}],"label_source":"seeded"}
+{"listing_id":"gen-0042","defect_id":"D5","spans":[{"field":"description","span":"1.200,5 metres"}],"label_source":"seeded"}
+{"listing_id":"gen-0043","defect_id":"D2","spans":[{"field":"description","span":"rooftop terrace, available for an additional charge,"},{"field":"inclusions","span":"Rooftop terrace entry"}],"label_source":"seeded"}
+{"listing_id":"gen-0045","defect_id":"D5","spans":[{"field":"description","span":"Ihr Fahrer kennt die Stadt und die besten Parkplätze."}],"label_source":"seeded"}
+{"listing_id":"gen-0045","defect_id":"D8","spans":[{"field":"title","span":"BUDAPEST PRIVATE DRIVER AND CAR FOR HALF A DAY"}],"label_source":"seeded"}
+{"listing_id":"gen-0047","defect_id":"D4","spans":[{"field":"description","span":"Return train tickets are included for each guest."}],"label_source":"seeded"}
+{"listing_id":"gen-0047","defect_id":"D5","spans":[{"field":"cancellation_policy","span":"15 €"}],"label_source":"seeded"}
+{"listing_id":"gen-0047","defect_id":"D8","spans":[{"field":"short_description","span":"Cycle through Central Park and Midtown with a local guide."}],"label_source":"seeded"}
+{"listing_id":"gen-0048","defect_id":"D1","spans":[{"field":"meeting_point","span":"Lorem ipsum dolor sit amet, consectetur adipiscing elit."}],"label_source":"seeded"}
+{"listing_id":"gen-0051","defect_id":"D5","spans":[{"field":"description","span":"Bitte kommen Sie 10 Minuten vor Beginn."}],"label_source":"seeded"}
+{"listing_id":"gen-0051","defect_id":"D7","spans":[{"field":"tags","span":"Beer"}],"label_source":"seeded"}
+{"listing_id":"gen-0053","defect_id":"D1","spans":[{"field":"description","span":""}],"label_source":"seeded"}
+{"listing_id":"gen-0055","defect_id":"D2","spans":[{"field":"description","span":"The boat is fully wheelchair accessible"},{"field":"attributes.wheelchair_accessible","span":"false"}],"label_source":"seeded"}
+{"listing_id":"gen-0055","defect_id":"D7","spans":[{"field":"tags","span":"Cooking class"}],"label_source":"seeded"}
+{"listing_id":"gen-0055","defect_id":"D8","spans":[{"field":"title","span":"PARIS SEINE SUNSET CRUISE FOR COUPLES"}],"label_source":"seeded"}
+{"listing_id":"gen-0056","defect_id":"D7","spans":[{"field":"category","span":"Water Activities"}],"label_source":"seeded"}
+{"listing_id":"gen-0056","defect_id":"D8","spans":[{"field":"title","span":"Budapest!?!"}],"label_source":"seeded"}
+{"listing_id":"gen-0057","defect_id":"D7","spans":[{"field":"category","span":"Kultur"}],"label_source":"seeded"}
+{"listing_id":"gen-0057","defect_id":"D8","spans":[{"field":"title","span":"Tagesausflug nach Salzburg ab München im Reisebus | Ein besonderes Erlebnis für neugierige Reisende, Paare, Freunde und Familien"}],"label_source":"seeded"}
+{"listing_id":"gen-0061","defect_id":"D8","spans":[{"field":"short_description","span":"Entdecken Sie an einem Abend die lokale Craft-Beer-Szene Venedigs und probieren Sie Biere aus kleinen italienischen Brauereien."}],"label_source":"seeded"}
+{"listing_id":"gen-0062","defect_id":"D2","spans":[{"field":"description","span":"skip-the-line entry at every bar"},{"field":"attributes.skip_the_line","span":"false"}],"label_source":"seeded"}
+{"listing_id":"gen-0062","defect_id":"D5","spans":[{"field":"cancellation_policy","span":"12.05.2027"}],"label_source":"seeded"}
+{"listing_id":"gen-0062","defect_id":"D8","spans":[{"field":"title","span":"⭐"}],"label_source":"seeded"}
+{"listing_id":"gen-0063","defect_id":"D1","spans":[{"field":"inclusions","span":""}],"label_source":"seeded"}
+{"listing_id":"gen-0064","defect_id":"D1","spans":[{"field":"duration","span":"TBD!!!"}],"label_source":"seeded"}
+{"listing_id":"gen-0065","defect_id":"D4","spans":[{"field":"description","span":"Abholung von Ihrem Hotel inklusive"}],"label_source":"seeded"}
+{"listing_id":"gen-0065","defect_id":"D6","spans":[{"field":"meeting_point","span":"www.tokyo-erleben.de"}],"label_source":"seeded"}
+{"listing_id":"gen-0066","defect_id":"D7","spans":[{"field":"tags","span":"Kids"}],"label_source":"seeded"}
+{"listing_id":"gen-0067","defect_id":"D2","spans":[{"field":"description","span":"The theatre is fully wheelchair accessible."},{"field":"attributes.wheelchair_accessible","span":"false"}],"label_source":"seeded"}
+{"listing_id":"gen-0067","defect_id":"D6","spans":[{"field":"short_description","span":"@hamburg_tours"}],"label_source":"seeded"}
+{"listing_id":"gen-0067","defect_id":"D7","spans":[{"field":"tags","span":"Familie"}],"label_source":"seeded"}
+{"listing_id":"gen-0068","defect_id":"D3","spans":[{"field":"description","span":"fully wheelchair accessible"}],"label_source":"seeded"}
+{"listing_id":"gen-0068","defect_id":"D7","spans":[{"field":"category","span":"Food & Drink"}],"label_source":"seeded"}
+{"listing_id":"gen-0071","defect_id":"D6","spans":[{"field":"short_description","span":"Nur heute 15 % Rabatt"}],"label_source":"seeded"}
+{"listing_id":"gen-0071","defect_id":"D7","spans":[{"field":"category","span":"Tours"}],"label_source":"seeded"}
+{"listing_id":"gen-0074","defect_id":"D8","spans":[{"field":"title","span":"MORGENYOGA IM PARK: ENTSPANNUNG IM GRÜNEN IN Porto"}],"label_source":"seeded"}
+{"listing_id":"gen-0075","defect_id":"D2","spans":[{"field":"description","span":"ein klimatisiertes, rollstuhlgerechtes Fahrzeug"},{"field":"attributes.wheelchair_accessible","span":"false"}],"label_source":"seeded"}
+{"listing_id":"gen-0075","defect_id":"D4","spans":[{"field":"description","span":"ungarische Snacks aus der Region"}],"label_source":"seeded"}
+{"listing_id":"gen-0076","defect_id":"D5","spans":[{"field":"meeting_point","span":"19 Uhr"}],"label_source":"seeded"}
+{"listing_id":"gen-0076","defect_id":"D7","spans":[{"field":"tags","span":"Kayaking"}],"label_source":"seeded"}
+{"listing_id":"gen-0079","defect_id":"D3","spans":[{"field":"short_description","span":"This is the official Stockholm cooking class."}],"label_source":"seeded"}
+{"listing_id":"gen-0079","defect_id":"D4","spans":[{"field":"description","span":"Entry tickets to the Vasa Museum are included."}],"label_source":"seeded"}
+{"listing_id":"gen-0079","defect_id":"D7","spans":[{"field":"tags","span":"Snorkelling"}],"label_source":"seeded"}
+{"listing_id":"gen-0080","defect_id":"D7","spans":[{"field":"category","span":"Water Activities"}],"label_source":"seeded"}
+{"listing_id":"gen-0080","defect_id":"D8","spans":[{"field":"short_description","span":"guide!?!"}],"label_source":"seeded"}
+{"listing_id":"gen-0081","defect_id":"D4","spans":[{"field":"description","span":"Return train tickets are included"}],"label_source":"seeded"}
+{"listing_id":"gen-0081","defect_id":"D1","spans":[{"field":"meeting_point","span":"TBC???"}],"label_source":"seeded"}
+{"listing_id":"gen-0083","defect_id":"D3","spans":[{"field":"description","span":"the No. 1 cafe and pastry tour"}],"label_source":"seeded"}
+{"listing_id":"gen-0084","defect_id":"D3","spans":[{"field":"description","span":"official pottery workshop of Vienna"}],"label_source":"seeded"}
+{"listing_id":"gen-0084","defect_id":"D4","spans":[{"field":"description","span":"a light Viennese breakfast is included"},{"field":"description","span":"official pottery workshop of Vienna"}],"label_source":"seeded"}
+{"listing_id":"gen-0084","defect_id":"D1","spans":[{"field":"meeting_point","span":"TBC"}],"label_source":"seeded"}
+{"listing_id":"gen-0087","defect_id":"D6","spans":[{"field":"description","span":"+44 20 7946 0958"}],"label_source":"seeded"}
+{"listing_id":"gen-0087","defect_id":"D8","spans":[{"field":"short_description","span":"Spend an evening in one of Soho's intimate jazz venues with a local host, live music and a taste of London's late-night culture."}],"label_source":"seeded"}
+{"listing_id":"gen-0088","defect_id":"D4","spans":[{"field":"description","span":"Der Eintritt in das Museum ist inklusive"}],"label_source":"seeded"}
+{"listing_id":"gen-0088","defect_id":"D1","spans":[{"field":"short_description","span":"Lorem Ipsum"}],"label_source":"seeded"}
+{"listing_id":"gen-0092","defect_id":"D8","spans":[{"field":"title","span":"Munich Photography Walk Workshop in the Old Town – See the City From a Completely New Perspective and Hear Its Local Stories"}],"label_source":"seeded"}
+{"listing_id":"gen-0095","defect_id":"D5","spans":[{"field":"description","span":"2.500,5 metres"}],"label_source":"seeded"}
+{"listing_id":"gen-0095","defect_id":"D7","spans":[{"field":"category","span":"Adventure Sports"}],"label_source":"seeded"}
+{"listing_id":"gen-0096","defect_id":"D2","spans":[{"field":"description","span":"Your admission tickets to the museum are included."},{"field":"exclusions","span":"Museum entrance ticket"}],"label_source":"seeded"}
+{"listing_id":"gen-0096","defect_id":"D7","spans":[{"field":"tags","span":"Kids"}],"label_source":"seeded"}
+{"listing_id":"gen-0098","defect_id":"D2","spans":[{"field":"description","span":"Der deutschsprachige Guide ist gegen Aufpreis buchbar."},{"field":"inclusions","span":"Deutschsprachiger Guide"}],"label_source":"seeded"}
+{"listing_id":"gen-0099","defect_id":"D7","spans":[{"field":"tags","span":"Cooking class"}],"label_source":"seeded"}
+{"listing_id":"gen-0099","defect_id":"D8","spans":[{"field":"title","span":"🏰"}],"label_source":"seeded"}
+{"listing_id":"gen-0101","defect_id":"D6","spans":[{"field":"short_description","span":"only €49"}],"label_source":"seeded"}
+{"listing_id":"gen-0102","defect_id":"D2","spans":[{"field":"short_description","span":"Zwei Stunden Aufenthalt"},{"field":"duration","span":"Ganztägig (bis zu 6 Stunden Aufenthalt)"}],"label_source":"seeded"}
+{"listing_id":"gen-0102","defect_id":"D1","spans":[{"field":"cancellation_policy","span":""}],"label_source":"seeded"}
+{"listing_id":"gen-0103","defect_id":"D6","spans":[{"field":"short_description","span":"nur 29,00 €"}],"label_source":"seeded"}
+{"listing_id":"gen-0104","defect_id":"D3","spans":[{"field":"description","span":"skip-the-line entry"}],"label_source":"seeded"}
+{"listing_id":"gen-0104","defect_id":"D4","spans":[{"field":"description","span":"Entry tickets to the observation hides are included"}],"label_source":"seeded"}
+{"listing_id":"gen-0105","defect_id":"D2","spans":[{"field":"description","span":"rides are available for an additional charge"},{"field":"inclusions","span":"Access to rides and attractions included in standard entry"}],"label_source":"seeded"}
+{"listing_id":"gen-0105","defect_id":"D6","spans":[{"field":"short_description","span":"ab 29,00 €"}],"label_source":"seeded"}
+{"listing_id":"gen-0107","defect_id":"D5","spans":[{"field":"description","span":"Das entspannte Tempo lässt Zeit für jeden Bissen und jede Nummer."}],"label_source":"seeded"}
+{"listing_id":"gen-0107","defect_id":"D7","spans":[{"field":"tags","span":"Kids"}],"label_source":"seeded"}
+{"listing_id":"gen-0107","defect_id":"D8","spans":[{"field":"short_description","span":"Enjoy a live cabaret-style performance while sampling a multi-course menu of modern Danish flavours in an intimate city-centre venue."}],"label_source":"seeded"}
+{"listing_id":"gen-0108","defect_id":"D5","spans":[{"field":"cancellation_policy","span":"24 December 2026"}],"label_source":"seeded"}
+{"listing_id":"gen-0111","defect_id":"D7","spans":[{"field":"category","span":"Classes & Workshops"}],"label_source":"seeded"}
+{"listing_id":"gen-0112","defect_id":"D2","spans":[{"field":"description","span":"You also receive a souvenir photo"},{"field":"exclusions","span":"Souvenir photo"}],"label_source":"seeded"}
+{"listing_id":"gen-0112","defect_id":"D4","spans":[{"field":"description","span":"Museum admission is included"}],"label_source":"seeded"}
+{"listing_id":"gen-0112","defect_id":"D5","spans":[{"field":"cancellation_policy","span":"10,00 €"}],"label_source":"seeded"}
+{"listing_id":"gen-0113","defect_id":"D3","spans":[{"field":"description","span":"Als Privatführung bleibt Ihre Gruppe unter sich"}],"label_source":"seeded"}
+{"listing_id":"gen-0114","defect_id":"D1","spans":[{"field":"cancellation_policy","span":"TBC???"}],"label_source":"seeded"}
+{"listing_id":"gen-0116","defect_id":"D2","spans":[{"field":"description","span":"Sie erhalten ein Erinnerungsfoto als Teil des Erlebnisses"},{"field":"exclusions","span":"Erinnerungsfoto"}],"label_source":"seeded"}
+{"listing_id":"gen-0116","defect_id":"D3","spans":[{"field":"description","span":"Der Saal ist rollstuhlgerecht"}],"label_source":"seeded"}
+{"listing_id":"gen-0117","defect_id":"D2","spans":[{"field":"description","span":"Hotel pickup is provided from central Porto hotels."},{"field":"exclusions","span":"Hotel pickup"}],"label_source":"seeded"}
+{"listing_id":"gen-0117","defect_id":"D7","spans":[{"field":"category","span":"Adventure Sports"}],"label_source":"seeded"}
+{"listing_id":"gen-0118","defect_id":"D3","spans":[{"field":"short_description","span":"fully wheelchair accessible"}],"label_source":"seeded"}
+{"listing_id":"gen-0118","defect_id":"D1","spans":[{"field":"cancellation_policy","span":"xxx"}],"label_source":"seeded"}
+{"listing_id":"gen-0120","defect_id":"D4","spans":[{"field":"description","span":"Hotelabholung und Rücktransport zum Hotel inklusive"}],"label_source":"seeded"}
+{"listing_id":"gen-0120","defect_id":"D6","spans":[{"field":"description","span":"€35"}],"label_source":"seeded"}
+{"listing_id":"gen-0120","defect_id":"D7","spans":[{"field":"tags","span":"Hiking"}],"label_source":"seeded"}
+{"listing_id":"gen-0121","defect_id":"D5","spans":[{"field":"description","span":"09:30 Uhr"}],"label_source":"seeded"}
+{"listing_id":"gen-0121","defect_id":"D6","spans":[{"field":"short_description","span":"ab 59 €"}],"label_source":"seeded"}
+{"listing_id":"gen-0121","defect_id":"D7","spans":[{"field":"tags","span":"Romantic"}],"label_source":"seeded"}
+{"listing_id":"gen-0122","defect_id":"D4","spans":[{"field":"description","span":"Der Eintritt ins Museum ist inklusive"}],"label_source":"seeded"}
+{"listing_id":"gen-0122","defect_id":"D1","spans":[{"field":"meeting_point","span":"lorem ipsum"}],"label_source":"seeded"}
+{"listing_id":"gen-0123","defect_id":"D2","spans":[{"field":"description","span":"Skip-the-line entry"},{"field":"attributes.skip_the_line","span":"false"}],"label_source":"seeded"}
+{"listing_id":"gen-0125","defect_id":"D3","spans":[{"field":"description","span":"Dies ist eine Privatführung nur für Ihre Gruppe."}],"label_source":"seeded"}
+{"listing_id":"gen-0126","defect_id":"D5","spans":[{"field":"description","span":"1.500,5 metres"}],"label_source":"seeded"}
+{"listing_id":"gen-0126","defect_id":"D7","spans":[{"field":"category","span":"Kultur"}],"label_source":"seeded"}
+{"listing_id":"gen-0127","defect_id":"D5","spans":[{"field":"description","span":"Freuen Sie sich auf spannende Geschichten und versteckte Winkel."}],"label_source":"seeded"}
+{"listing_id":"gen-0127","defect_id":"D8","spans":[{"field":"title","span":"Lisbon Legends and Ghost Walk in the Old Quarters – Discover Hidden Corners, Charming Streets and Local Stories Along the Way"}],"label_source":"seeded"}
+{"listing_id":"gen-0128","defect_id":"D2","spans":[{"field":"description","span":"Kahnfahrt durch die Fließe gegen Aufpreis"},{"field":"inclusions","span":"Kahnfahrt im Spreewald"}],"label_source":"seeded"}
+{"listing_id":"gen-0130","defect_id":"D4","spans":[{"field":"description","span":"All entrance fees are included"}],"label_source":"seeded"}
+{"listing_id":"gen-0130","defect_id":"D1","spans":[{"field":"cancellation_policy","span":""}],"label_source":"seeded"}
+{"listing_id":"gen-0130","defect_id":"D8","spans":[{"field":"title","span":"HAMBURG LEGENDS AND GHOST WALK BY NIGHT"}],"label_source":"seeded"}
+{"listing_id":"gen-0131","defect_id":"D8","spans":[{"field":"title","span":"centre?!?"}],"label_source":"seeded"}
+{"listing_id":"gen-0132","defect_id":"D3","spans":[{"field":"description","span":"skip-the-line boarding"}],"label_source":"seeded"}
+{"listing_id":"gen-0135","defect_id":"D4","spans":[{"field":"description","span":"Local snacks are served during the bath."}],"label_source":"seeded"}
+{"listing_id":"gen-0135","defect_id":"D5","spans":[{"field":"cancellation_policy","span":"24.12.2026"}],"label_source":"seeded"}
+{"listing_id":"gen-0135","defect_id":"D1","spans":[{"field":"short_description","span":"Lorem ipsum dolor sit amet, consectetur adipiscing elit."}],"label_source":"seeded"}
+{"listing_id":"gen-0136","defect_id":"D3","spans":[{"field":"description","span":"skip-the-line entry at every venue"}],"label_source":"seeded"}
+{"listing_id":"gen-0138","defect_id":"D4","spans":[{"field":"description","span":"Hotelabholung und Rücktransport zum Hotel"}],"label_source":"seeded"}
+{"listing_id":"gen-0139","defect_id":"D4","spans":[{"field":"description","span":"Alle Eintrittsgelder sind im Preis inbegriffen"}],"label_source":"seeded"}
+{"listing_id":"gen-0139","defect_id":"D6","spans":[{"field":"description","span":"Frühbucher erhalten 15 % Rabatt auf den Workshop"}],"label_source":"seeded"}
+{"listing_id":"gen-0139","defect_id":"D7","spans":[{"field":"category","span":"Transfers & Transport"}],"label_source":"seeded"}
+{"listing_id":"gen-0141","defect_id":"D3","spans":[{"field":"description","span":"official street art tour of Newtown"}],"label_source":"seeded"}
+{"listing_id":"gen-0141","defect_id":"D8","spans":[{"field":"title","span":"😍"}],"label_source":"seeded"}
+{"listing_id":"gen-0144","defect_id":"D3","spans":[{"field":"description","span":"Nr. 1 unter den Café-Touren in Fira"}],"label_source":"seeded"}
+{"listing_id":"gen-0144","defect_id":"D4","spans":[{"field":"description","span":"Hotelabholung und Rückfahrt zum Hotel inklusive"}],"label_source":"seeded"}
+{"listing_id":"gen-0144","defect_id":"D8","spans":[{"field":"short_description","span":"Entdecken Sie bei einem entspannten Spaziergang durch Fira traditionelle Cafés und Bäckereien und probieren Sie griechische Süßspeisen und Kaffee."}],"label_source":"seeded"}
+{"listing_id":"gen-0145","defect_id":"D2","spans":[{"field":"description","span":"ganztägigen Ausflug von rund 6 Stunden"},{"field":"duration","span":"Ganztägig (ca. 11 Stunden)"}],"label_source":"seeded"}
+{"listing_id":"gen-0145","defect_id":"D4","spans":[{"field":"description","span":"Eintritt in die Hunter Valley Gardens"}],"label_source":"seeded"}
+{"listing_id":"gen-0147","defect_id":"D3","spans":[{"field":"description","span":"Skip-the-line entry for all ticket holders."}],"label_source":"seeded"}
+{"listing_id":"gen-0147","defect_id":"D6","spans":[{"field":"short_description","span":"ab 25 €"}],"label_source":"seeded"}
+{"listing_id":"gen-0147","defect_id":"D1","spans":[{"field":"cancellation_policy","span":"XXX"}],"label_source":"seeded"}
+{"listing_id":"gen-0149","defect_id":"D3","spans":[{"field":"description","span":"offizielle Street-Art-Tour von Marrakesch"}],"label_source":"seeded"}
+{"listing_id":"gen-0149","defect_id":"D7","spans":[{"field":"tags","span":"Wine tasting"}],"label_source":"seeded"}
+{"listing_id":"gen-0150","defect_id":"D5","spans":[{"field":"cancellation_policy","span":"€12.50"}],"label_source":"seeded"}
+{"listing_id":"gen-0150","defect_id":"D6","spans":[{"field":"description","span":"0171 2345678"}],"label_source":"seeded"}

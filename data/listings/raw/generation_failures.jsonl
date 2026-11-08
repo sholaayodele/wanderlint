@@ -1,0 +1,75 @@
+{"listing_id": "gen-0006", "stage": "inject", "attempt": 0, "errors": ["food_promised: every food_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0006", "stage": "inject", "attempt": 0, "errors": ["drink_promised: every drink_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0015", "stage": "inject", "attempt": 0, "errors": ["transport_promised: every transport_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0015", "stage": "inject", "attempt": 0, "errors": ["food_promised: every food_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0015", "stage": "inject", "attempt": 0, "errors": ["drink_promised: every drink_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0028", "stage": "inject", "attempt": 0, "errors": ["short_description: 'from €39' is a clause appended to an existing sentence (\"tails with views over Salzburg's skyline\" + 'from €39.'); write it as its own sentence, or rewrite a sentence about that topic so the change belongs there"], "defect_id": "D6"}
+{"listing_id": "gen-0028", "stage": "inject", "attempt": 1, "errors": ["span in short_description is 4 words; give the shortest excerpt (at most 3 words) that shows the problem"], "defect_id": "D6"}
+{"listing_id": "gen-0028", "stage": "inject", "attempt": 2, "errors": ["short_description: 'only €45' is a clause appended to an existing sentence (\"tails with views over Salzburg's skyline\" + 'for only €45.'); write it as its own sentence, or rewrite a sentence about that topic so the change belongs there"], "defect_id": "D6"}
+{"listing_id": "gen-0029", "stage": "inject", "attempt": 0, "errors": ["short_description: 'ab 59,00 €' is a clause appended to an existing sentence ('n the Rhine and snorkel in shallow water' + ', ab 59,00 €.'); write it as its own sentence, or rewrite a sentence about that topic so the change belongs there"], "defect_id": "D6"}
+{"listing_id": "gen-0057", "stage": "inject", "attempt": 0, "errors": ["drink_promised: every drink_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0057", "stage": "inject", "attempt": 0, "errors": ["food_promised: every food_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0057", "stage": "inject", "attempt": 0, "errors": ["ticket_promised: every ticket_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0057", "stage": "inject", "attempt": 0, "errors": ["transport_promised: every transport_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0066", "stage": "inject", "attempt": 0, "errors": ["drink_promised: every drink_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0066", "stage": "inject", "attempt": 0, "errors": ["food_promised: every food_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0066", "stage": "inject", "attempt": 0, "errors": ["ticket_promised: every ticket_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0066", "stage": "inject", "attempt": 0, "errors": ["transport_promised: every transport_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0071", "stage": "inject", "attempt": 0, "errors": ["ticket_promised: every ticket_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0071", "stage": "inject", "attempt": 0, "errors": ["food_promised: every food_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0071", "stage": "inject", "attempt": 0, "errors": ["drink_promised: every drink_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0071", "stage": "inject", "attempt": 0, "errors": ["transport_promised: every transport_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0072", "stage": "inject", "attempt": 0, "errors": ["span in description is 10 words; give the shortest excerpt (at most 8 words) that shows the problem"], "defect_id": "D3"}
+{"listing_id": "gen-0072", "stage": "inject", "attempt": 1, "errors": ["span not verbatim in description: 'the official guided tour of the Museum'"], "defect_id": "D3"}
+{"listing_id": "gen-0072", "stage": "inject", "attempt": 2, "errors": ["span in description is 10 words; give the shortest excerpt (at most 8 words) that shows the problem"], "defect_id": "D3"}
+{"listing_id": "gen-0072", "stage": "inject", "attempt": 0, "errors": ["pickup_promised: every pickup_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0072", "stage": "inject", "attempt": 0, "errors": ["food_promised: every food_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0072", "stage": "inject", "attempt": 0, "errors": ["drink_promised: every drink_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0072", "stage": "inject", "attempt": 0, "errors": ["ticket_promised: every ticket_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0072", "stage": "inject", "attempt": 0, "errors": ["transport_promised: every transport_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0075", "stage": "inject", "attempt": 0, "errors": ["transport_promised: every transport_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0076", "stage": "inject", "attempt": 0, "errors": ["pickup_promised: every pickup_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0076", "stage": "inject", "attempt": 0, "errors": ["food_promised: every food_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0076", "stage": "inject", "attempt": 0, "errors": ["drink_promised: every drink_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0076", "stage": "inject", "attempt": 0, "errors": ["ticket_promised: every ticket_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0076", "stage": "inject", "attempt": 0, "errors": ["transport_promised: every transport_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0079", "stage": "inject", "attempt": 0, "errors": ["short_description: 'the official Stockholm cooking class' is a clause appended to an existing sentence ('ee-course Swedish meal with a local chef' + 'on the official Stockholm cooking class.'); write it as its own sentence, or rewrite a sentence about that topic so the change belongs there"], "defect_id": "D3"}
+{"listing_id": "gen-0083", "stage": "inject", "attempt": 0, "errors": ["span in description is 9 words; give the shortest excerpt (at most 8 words) that shows the problem"], "defect_id": "D3"}
+{"listing_id": "gen-0084", "stage": "inject", "attempt": 0, "errors": ["drink_promised: every drink_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0084", "stage": "inject", "attempt": 0, "errors": ["span in description is 9 words; give the shortest excerpt (at most 8 words) that shows the problem"], "defect_id": "D4"}
+{"listing_id": "gen-0088", "stage": "inject", "attempt": 0, "errors": ["transport_promised: every transport_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0088", "stage": "inject", "attempt": 0, "errors": ["food_promised: every food_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0088", "stage": "inject", "attempt": 0, "errors": ["drink_promised: every drink_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0088", "stage": "inject", "attempt": 0, "errors": ["span in description is 10 words; give the shortest excerpt (at most 8 words) that shows the problem"], "defect_id": "D4"}
+{"listing_id": "gen-0103", "stage": "inject", "attempt": 0, "errors": ["short_description: 'nur 29,00 €' is a clause appended to an existing sentence ('k through the National Museum of Denmark' + ', nur 29,00 € per person.'); write it as its own sentence, or rewrite a sentence about that topic so the change belongs there"], "defect_id": "D6"}
+{"listing_id": "gen-0104", "stage": "inject", "attempt": 0, "errors": ["food_promised: every food_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0104", "stage": "inject", "attempt": 0, "errors": ["drink_promised: every drink_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0104", "stage": "inject", "attempt": 0, "errors": ["span in description is 9 words; give the shortest excerpt (at most 8 words) that shows the problem"], "defect_id": "D4"}
+{"listing_id": "gen-0112", "stage": "inject", "attempt": 0, "errors": ["span in description is 9 words; give the shortest excerpt (at most 8 words) that shows the problem"], "defect_id": "D2"}
+{"listing_id": "gen-0112", "stage": "inject", "attempt": 1, "errors": ["span in description is 9 words; give the shortest excerpt (at most 8 words) that shows the problem"], "defect_id": "D2"}
+{"listing_id": "gen-0112", "stage": "inject", "attempt": 0, "errors": ["drink_promised: every drink_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0112", "stage": "inject", "attempt": 0, "errors": ["food_promised: every food_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0113", "stage": "inject", "attempt": 0, "errors": ["span not verbatim in description: 'Als Privatführung nur für Ihre Gruppe'"], "defect_id": "D3"}
+{"listing_id": "gen-0113", "stage": "inject", "attempt": 0, "errors": ["ticket_promised: every ticket_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0113", "stage": "inject", "attempt": 0, "errors": ["food_promised: every food_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0113", "stage": "inject", "attempt": 0, "errors": ["drink_promised: every drink_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0113", "stage": "inject", "attempt": 0, "errors": ["transport_promised: every transport_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0120", "stage": "inject", "attempt": 0, "errors": ["span in description is 9 words; give the shortest excerpt (at most 8 words) that shows the problem"], "defect_id": "D4"}
+{"listing_id": "gen-0121", "stage": "inject", "attempt": 0, "errors": ["short_description: 'ab 59 €' is a clause appended to an existing sentence ('norkelling in clear Mediterranean waters' + ', ab 59 €.'); write it as its own sentence, or rewrite a sentence about that topic so the change belongs there"], "defect_id": "D6"}
+{"listing_id": "gen-0122", "stage": "inject", "attempt": 0, "errors": ["food_promised: every food_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0122", "stage": "inject", "attempt": 0, "errors": ["drink_promised: every drink_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0123", "stage": "inject", "attempt": 0, "errors": ["transport_promised: every transport_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0123", "stage": "inject", "attempt": 0, "errors": ["food_promised: every food_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0123", "stage": "inject", "attempt": 0, "errors": ["drink_promised: every drink_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0123", "stage": "inject", "attempt": 0, "errors": ["ticket_promised: every ticket_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0128", "stage": "inject", "attempt": 0, "errors": ["span in description is 9 words; give the shortest excerpt (at most 8 words) that shows the problem"], "defect_id": "D2"}
+{"listing_id": "gen-0130", "stage": "inject", "attempt": 0, "errors": ["drink_promised: every drink_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0130", "stage": "inject", "attempt": 0, "errors": ["food_promised: every food_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0135", "stage": "inject", "attempt": 0, "errors": ["transport_promised: every transport_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0139", "stage": "inject", "attempt": 0, "errors": ["span in description is 9 words; give the shortest excerpt (at most 8 words) that shows the problem"], "defect_id": "D6"}
+{"listing_id": "gen-0144", "stage": "inject", "attempt": 0, "errors": ["description: the claim adds something the customer receives (food); only state the feature claim", "span not verbatim in description: 'die Nr. 1 unter den Food-Touren in Fira'"], "defect_id": "D3"}
+{"listing_id": "gen-0144", "stage": "inject", "attempt": 1, "errors": ["description: 'die bestbewertete Café-Tour in Fira' is a clause appended to an existing sentence ('omente abseits der Touristenpfade suchen' + ', denn dies ist die bestbewertete Café-Tour in Fir'); write it as its own sentence, or rewrite a sentence about that topic so the change belongs there"], "defect_id": "D3"}
+{"listing_id": "gen-0145", "stage": "inject", "attempt": 0, "errors": ["food_promised: every food_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0145", "stage": "inject", "attempt": 0, "errors": ["drink_promised: every drink_promised item overlaps inclusions or exclusions"], "defect_id": "D4"}
+{"listing_id": "gen-0145", "stage": "inject", "attempt": 0, "errors": ["promised 'Eintrittstickets für alle Weingüter sind im Preis inbegriffen' overlaps the listed item 'Weinkäufe vor Ort' (drinks); promise something inclusions and exclusions don't mention"], "defect_id": "D4"}
+{"listing_id": "gen-0147", "stage": "inject", "attempt": 0, "errors": ["short_description: 'ab 25 €' is a clause appended to an existing sentence ('l concert in a historic Marrakech palace' + ', ab 25 €.'); write it as its own sentence, or rewrite a sentence about that topic so the change belongs there"], "defect_id": "D6"}
