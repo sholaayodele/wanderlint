@@ -248,7 +248,7 @@ Stated up front, and repeated in every evaluation report:
 - [x] Defect taxonomy v1 with documented boundary decisions (`taxonomy-v1`)
 - [x] Labeling guide with one-page cheat sheet
 - [x] Synthetic data pipeline with automated quality audits — 150 listings, 163 planted defects, €2.21
-- [ ] Blind-then-reveal labeling app
+- [x] Blind-then-reveal labeling app
 - [ ] Human validation of all 150 listings; self-agreement (κ)
 - [ ] Frozen dev / test split
 

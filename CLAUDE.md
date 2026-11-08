@@ -190,7 +190,7 @@ wanderlint/
   data/
     listings/                 # dev.jsonl, test.jsonl, raw/ (generated.jsonl, generated_meta.jsonl)
     listings/regression/      # per-failure-pattern listings
-    labels/                   # seeded, gold, relabel_kappa, unsure, rejected_seeds (.jsonl)
+    labels/                   # seeded, gold, relabel_kappa, unsure, rejected_seeds, labeling_log (.jsonl)
   src/wanderlint/
     models.py                 # pydantic: Listing, Span, Defect, GoldLabel, UnsureLabel, Taxonomy, …
     rules.py
@@ -200,11 +200,14 @@ wanderlint/
     eval.py
     cost.py                   # token + € accounting, hard cost cap
     llm.py                    # cached, cost-tracked structured-output API calls
+    labeling.py               # labeling logic: order, span validation, reconcile, save, stats
     datagen/                  # synthetic data: vocab, plan (seeded specs), checks, inject, run, audit
   scripts/
     generate_listings.py
     audit_generated.py        # re-checks seeded data (claims, D4 overlap, seams, spans)
-    label_app.py              # Streamlit labeling tool
+    label_app.py              # Streamlit labeling tool (blind-then-reveal; logic in labeling.py)
+    labeling_stats.py         # seed rejection, human-added, blind recall/precision, time
+    save_labels.sh            # commit + push data/labels/*.jsonl (make save-labels)
     kappa.py
   reports/                    # {date}_{prompt_version}_{split}.md (+ .json)
   tests/
@@ -289,7 +292,9 @@ make format                                          # ruff format
 uv run python scripts/generate_listings.py --n 10 --seed 42 --dry-run   # plan + estimate, no API
 uv run python scripts/generate_listings.py --n 150 --seed 42 --yes      # > 20 listings needs --yes
 uv run python scripts/audit_generated.py                                 # deterministic audit of generated data
-uv run streamlit run scripts/label_app.py
+uv run --group label streamlit run scripts/label_app.py           # = make label
+uv run python scripts/labeling_stats.py                            # = make label-stats
+make save-labels                                                   # commit + push data/labels/*.jsonl
 uv run python scripts/kappa.py
 
 uv run wanderlint check --mode freelancer-batch --input data/listings/raw/batch_01/

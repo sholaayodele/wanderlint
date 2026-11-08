@@ -278,11 +278,26 @@ unsure for the same reason, stop and fix the taxonomy before you label more.
 
 | Value | Meaning |
 |---|---|
-| `seeded` | Planted during data generation (`seeded.jsonl`). Pre-filled in the tool. **Not** ground truth until you review it, and never in the frozen gold. |
+| `seeded` | Planted during data generation (`seeded.jsonl`). Hidden in the tool until you reveal them (blind-then-reveal, below). **Not** ground truth until you review it, and never in the frozen gold. |
 | `confirmed` | A seeded label you reviewed and agree with. You may correct its spans. |
 | `added_by_human` | A defect you found that wasn't seeded. |
 
 - The **frozen `gold.jsonl`** contains only `confirmed` and `added_by_human`.
+- **Blind-then-reveal** (`make label`, i.e. `scripts/label_app.py`): label each listing
+  with the seeds hidden first, then press *Reveal seeds* and decide each seed (Confirm /
+  Reject with a reason / Change type). Seeds are matched to your labels by defect type.
+  Your blind labels without a seed become `added_by_human`; any you drop after the reveal
+  are counted (blind precision). Seeing the seeds first anchors you on them. Hard-case and
+  trap info from generation is never shown. Listings come in a fixed random order (seed 7);
+  you can resume and go back. Going back to a saved listing keeps your original blind pass
+  and lets you change only the reconcile decisions. Use *Pause* for breaks: each phase is
+  capped at 10 minutes of active time, and capped records are left out of the time medians.
+- **Files:** the app writes `gold.jsonl`, `rejected_seeds.jsonl`, `unsure.jsonl` and
+  `labeling_log.jsonl` (blind labels, seeds, outcome per seed, seconds per phase; the
+  latest save per listing wins). `make label-stats` reports seed rejection rate,
+  human-added labels, blind recall and precision, unsure count and time per listing.
+- **Saving your work:** run `make save-labels` after a session. It commits
+  `data/labels/*.jsonl` as "Labels: <n>/150 labeled" and pushes.
 - **Rejecting a seed:** leave it out of gold and log it in
   `data/labels/rejected_seeds.jsonl` with a reason:
   `{"listing_id": "L042", "defect_id": "D3", "reason": "Backed by attribute small_group=true"}`.
