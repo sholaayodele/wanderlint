@@ -134,3 +134,27 @@ fixes, and taxonomy/prompt version changes.
   Pilot v5 finding: the receivable matcher counted "Return high-speed ferry ticket" as an
   admission ticket, so every D4 variant was blocked and one D4 dropped. Ferry/train/boat/bus/
   rail/metro tickets now count as transport only (code fix, prompts unchanged).
+- 2026-11-08 — datagen v5 code fixes (prompt_version stays `datagen_v5`; prompt files unchanged),
+  from the first full run (reports/datagen/full_run_v5_attempt1.json: 146/150 listings, D3 = 12
+  < 15, 16 dropped defects, €2.01):
+  1. Claim guard false positives (systematic, the v4 guard): skip-the-line / "official" claims
+     mention entry or tickets, and a wine-tasting claim mentions wine. The guard now flags only
+     receivable groups not already covered by inclusions, and exempts tickets for skip-the-line.
+     All 7 dropped D3s failed this check.
+  2. One shared function, `checks.added_receivables`, used by the generator guard and the audit
+     (wanderlint.datagen.audit), so they can't disagree again (they did: the audit excluded
+     tickets, the generator didn't).
+  3. The audit ignored nothing from other seeds: a D4 food/pickup promise in the same field was
+     blamed on the D2/D3 claim (3 false alarms: gen-0075, gen-0084, gen-0144). Other seeds' spans
+     are now stripped before counting.
+  4. Acronym trap: 4 clean listings (Outdoor & Adventure ×3, Wellness ×1) failed generation
+     because the model hyphenated the acronym ("4WD-Geländewagen", "GPS-guided", "DIY-Peeling").
+     A hyphenated compound doesn't exercise the caps-rule acronym exemption, so the check stays
+     strict; the trap instruction (in code) now asks for a standalone word. Brackets were already
+     stripped ("(4WD)" counts).
+  5. D3/D4 hard case (pickup) now falls back to other D4 variants like plain D4s; the defect is
+     kept, the hard case is dropped (meta: `hard_case` null, `hard_case_planned` kept).
+  6. Provenance: generation_run.json and every meta row record git_commit, git_dirty,
+     prompt_version and taxonomy_version.
+  Re-run reuses the response cache: only listings whose prompts or accepted edits change make
+  new calls; listing IDs come from the deterministic plan and stay stable.

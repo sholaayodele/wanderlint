@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 from wanderlint.datagen.vocab import (
@@ -352,6 +353,39 @@ def receivable_counts(text: str) -> dict[str, int]:
 
 def receivable_groups(text: str) -> set[str]:
     return {g for g, n in receivable_counts(text).items() if n}
+
+
+# Skip-the-line is a claim about entry, so mentioning entry/tickets is inherent to it.
+CLAIM_RECEIVABLE_EXEMPT: dict[str, set[str]] = {"skip_the_line": {"tickets"}}
+
+
+def _remove(text: str, needles: Iterable[str]) -> str:
+    for n in sorted({x for x in needles if x.strip()}, key=len, reverse=True):
+        text = re.sub(re.escape(n), " ", text, flags=re.IGNORECASE)
+    return text
+
+
+def added_receivables(
+    before: str,
+    after: str,
+    *,
+    inclusions: Iterable[str] = (),
+    strip: Iterable[str] = (),
+    claim_key: str | None = None,
+) -> list[str]:
+    """Receivable groups a claim edit newly mentions that a customer could read as a promise.
+
+    Shared by the generator's claim guard and scripts/audit_generated.py. Ignores
+    - text in `strip` (the claim's own wording; in the audit also other seeds' spans),
+    - groups already covered by `inclusions` (mentioning an included item is no D4),
+    - groups inherent to the claim (CLAIM_RECEIVABLE_EXEMPT, e.g. tickets for skip-the-line).
+    """
+    strip = list(strip)
+    old = receivable_counts(_remove(before, strip))
+    new = receivable_counts(_remove(after, strip))
+    covered = set().union(*(receivable_groups(i) for i in inclusions)) if inclusions else set()
+    exempt = CLAIM_RECEIVABLE_EXEMPT.get(claim_key or "", set())
+    return sorted(g for g in new if new[g] > old[g] and g not in covered | exempt)
 
 
 def has_person_guide(listing: Listing) -> bool:

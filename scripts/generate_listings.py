@@ -12,9 +12,10 @@ responses are cached in .cache/llm, so re-runs are free and identical.
 from __future__ import annotations
 
 import json
+import subprocess
 from collections import Counter
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 import yaml
@@ -48,6 +49,23 @@ def _estimate_eur(specs, prompts, pricing: Pricing, model: str) -> float:
         inj_in = (len(prompts.inject_system) + 3500) / 3.5
         usd += n_llm * (inj_in * p.input / 1e6 + 800 * p.output / 1e6)
     return usd * 1.2 * pricing.usd_to_eur  # +20% retries
+
+
+def _git_state() -> dict[str, Any]:
+    """Commit the code ran from; dirty = tracked files changed (untracked data ignored)."""
+
+    def git(*args: str) -> str:
+        return subprocess.run(
+            ["git", *args], cwd=ROOT, capture_output=True, text=True, check=True
+        ).stdout.strip()
+
+    try:
+        return {
+            "git_commit": git("rev-parse", "HEAD"),
+            "git_dirty": bool(git("status", "--porcelain", "--untracked-files=no")),
+        }
+    except (OSError, subprocess.CalledProcessError):
+        return {"git_commit": None, "git_dirty": None}
 
 
 @app.command()
@@ -121,9 +139,14 @@ def main(
         "meta": ROOT / dg["output_meta"],
         "failures": ROOT / dg["output_failures"],
     }
-    write_outputs(results, failures, out)
+    provenance = {
+        **_git_state(),
+        "prompt_version": dg["prompt_version"],
+        "taxonomy_version": taxonomy.version,
+    }
+    write_outputs(results, failures, out, provenance)
     summary = summarize(results, failures, llm)
-    summary.update({"n": n, "seed": seed, "model": model, "stopped": stop})
+    summary.update({"n": n, "seed": seed, "model": model, "stopped": stop, **provenance})
     run_path = out["listings"].with_name("generation_run.json")
     calls = [
         {

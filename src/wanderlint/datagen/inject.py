@@ -15,9 +15,9 @@ from typing import Any
 
 from wanderlint.datagen.checks import (
     CheckContext,
+    added_receivables,
     find_issues,
     has_person_guide,
-    receivable_counts,
     receivable_groups,
     rstrip_punct,
     sentence_of,
@@ -584,6 +584,7 @@ class LLMEdit:
     max_span_words: int = 8
     required_span_terms: list[str] = field(default_factory=list)
     no_new_receivables: bool = False  # claims must not add a guide/food/drinks/…
+    claim_key: str | None = None
     check_listed_overlap: bool = False  # D4: promised span must not match inclusions/exclusions
 
 
@@ -630,6 +631,7 @@ def llm_edit_for(spec: DefectSpec, listing: Listing, rng: random.Random) -> LLME
             instruction=_claim_instruction(claim, terms),
             required_span_terms=terms,
             no_new_receivables=True,
+            claim_key=key,
             editable=copy_fields,
             set_attributes=set_attrs,
             delete_attributes=["max_group_size"] if key == "small_group" else [],
@@ -661,6 +663,7 @@ def llm_edit_for(spec: DefectSpec, listing: Listing, rng: random.Random) -> LLME
             ),
             required_span_terms=terms,
             no_new_receivables=True,
+            claim_key=key,
             editable=copy_fields,
             delete_attributes=related,
         )
@@ -852,11 +855,13 @@ def apply_llm_edit(
         for f in update:
             if f not in TEXT_FIELDS:
                 continue
-            before, after = (
-                _strip_terms(t, edit.required_span_terms) for t in (getattr(listing, f), update[f])
+            added = added_receivables(
+                getattr(listing, f),
+                update[f],
+                inclusions=listing.inclusions,
+                strip=edit.required_span_terms,
+                claim_key=edit.claim_key,
             )
-            old_c, new_c = receivable_counts(before), receivable_counts(after)
-            added = sorted(g for g in new_c if new_c[g] > old_c[g])
             if added:
                 errors.append(
                     f"{f}: the claim adds something the customer receives ({', '.join(added)}); "
@@ -888,13 +893,10 @@ def apply_llm_edit(
     # Drop model spans that duplicate our programmatic ones, then add those.
     extra_keys = {(s.field, s.span) for s in edit.extra_spans}
     spans = [s for s in spans if (s.field, s.span) not in extra_keys] + list(edit.extra_spans)
-    return Injection(new_listing, spans, variant, {"edited_fields": sorted(edited)}), errors
-
-
-def _strip_terms(text: str, terms: list[str]) -> str:
-    for t in terms:
-        text = re.sub(re.escape(t), " ", text, flags=re.IGNORECASE)
-    return text
+    detail: dict[str, Any] = {"edited_fields": sorted(edited)}
+    if edit.claim_key:
+        detail["claim_key"] = edit.claim_key
+    return Injection(new_listing, spans, variant, detail), errors
 
 
 def llm_variant_detectable(variant: str) -> bool:

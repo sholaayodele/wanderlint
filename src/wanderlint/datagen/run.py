@@ -122,9 +122,12 @@ def trap_instruction(trap: TrapSpec, locale: str) -> str:
         options = d.removeprefix("acronym:").split("|") if d.startswith("acronym:") else []
         return (
             "The title contains exactly one of these acronyms, in capitals, whichever fits the "
-            f"activity best: {', '.join(options)}. It names the activity itself (equipment, "
-            "vehicle, format or era), and the description must match it; if it names equipment "
-            "or a vehicle the customer uses, list that in inclusions. No status, rank or perk "
+            f"activity best: {', '.join(options)}. Write it as a standalone word, not "
+            "hyphenated into a compound or in brackets (e.g. 'SUP lesson' or 'per 4WD', not "
+            "'SUP-Kurs', '4WD-Geländewagen' or 'GPS-guided'). It names the activity itself "
+            "(equipment, vehicle, format or era), and the description must match it; if it "
+            "names equipment or a vehicle the customer uses, list that in inclusions. No "
+            "status, rank or perk "
             "acronyms anywhere in the title (no UNESCO, VIP, BBQ). The rest of the title is in "
             "normal case."
         )
@@ -333,6 +336,16 @@ def _avoid_fields(spans: list[Span]) -> set[str]:
     return {s.field for s in spans if not s.field.startswith("attributes.")}
 
 
+def fallback_variants(dspec: DefectSpec) -> list[str]:
+    """Planned variant first; if it can't apply to a listing (e.g. every D4 item overlaps
+    inclusions/exclusions), the type's other LLM variants. Hard cases don't fall back, except
+    D4 (D3/D4 pickup): the defect is kept, the hard case is not."""
+    variants = [dspec.variant]
+    if dspec.hard_case is None or dspec.defect_id == "D4":
+        variants += [v for m, v in VARIANTS[dspec.defect_id] if m == "llm" and v != dspec.variant]
+    return variants
+
+
 def inject_llm(
     listing: Listing,
     spec: ListingSpec,
@@ -346,11 +359,7 @@ def inject_llm(
     failures: list[Failure],
     seed: int,
 ) -> Injection | None:
-    # Planned variant first; if it can't apply to this listing (e.g. every D4 item overlaps
-    # inclusions/exclusions), try the type's other LLM variants. Hard cases never fall back.
-    variants = [dspec.variant]
-    if dspec.hard_case is None:
-        variants += [v for m, v in VARIANTS[dspec.defect_id] if m == "llm" and v != dspec.variant]
+    variants = fallback_variants(dspec)
     edit = None
     for variant in variants:
         rng = random.Random(f"{seed}|{spec.id}|{dspec.defect_id}|{variant}")
@@ -464,7 +473,8 @@ def inject_defects(
                 "method": dspec.method,
                 "planned_variant": dspec.variant,
                 "variant": inj.variant,
-                "hard_case": dspec.hard_case,
+                "hard_case": dspec.hard_case if inj.variant == dspec.variant else None,
+                "hard_case_planned": dspec.hard_case,
                 "detail": inj.detail,
             }
         )
@@ -515,7 +525,7 @@ def write_jsonl(path: Path, rows: list[str]) -> None:
     path.write_text("".join(r + "\n" for r in rows), encoding="utf-8")
 
 
-def meta_row(res: ListingResult) -> dict[str, Any]:
+def meta_row(res: ListingResult, provenance: dict[str, Any] | None = None) -> dict[str, Any]:
     s = res.spec
     return {
         "listing_id": s.id,
@@ -535,16 +545,22 @@ def meta_row(res: ListingResult) -> dict[str, Any]:
         "failed_defects": res.failed_defects,
         "generation_attempts": res.generation_attempts,
         "pre_injection": res.clean.model_dump() if res.clean and res.labels else None,
+        **(provenance or {}),
     }
 
 
 def write_outputs(
-    results: list[ListingResult], failures: list[Failure], paths: dict[str, Path]
+    results: list[ListingResult],
+    failures: list[Failure],
+    paths: dict[str, Path],
+    provenance: dict[str, Any] | None = None,
 ) -> None:
     ok = [r for r in results if r.listing is not None]
     write_jsonl(paths["listings"], [r.listing.model_dump_json() for r in ok])  # type: ignore[union-attr]
     write_jsonl(paths["seeded"], [lab.model_dump_json() for r in ok for lab in r.labels])
-    write_jsonl(paths["meta"], [json.dumps(meta_row(r), ensure_ascii=False) for r in results])
+    write_jsonl(
+        paths["meta"], [json.dumps(meta_row(r, provenance), ensure_ascii=False) for r in results]
+    )
     write_jsonl(paths["failures"], [json.dumps(asdict(f), ensure_ascii=False) for f in failures])
 
 

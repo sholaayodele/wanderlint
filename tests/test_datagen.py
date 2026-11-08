@@ -754,3 +754,136 @@ def test_format_variants_span_the_token_only(variant: str) -> None:
         DefectSpec(defect_id="D6", method="llm", variant="promo"), listing, random.Random(0)
     )
     assert promo.max_span_words == 8
+
+
+# --- datagen v5 fixes: shared receivables, acronym trap, D4 hard-case fallback, provenance ---
+
+from wanderlint.datagen.audit import audit_listing  # noqa: E402
+from wanderlint.datagen.checks import added_receivables  # noqa: E402
+from wanderlint.datagen.run import fallback_variants, meta_row  # noqa: E402
+
+
+def _wine_tasting() -> Listing:
+    return clean_de().model_copy(
+        update={
+            "title": "Weinverkostung in Budapest",
+            "description": "Probieren Sie ungarische Weine in einem historischen Keller.",
+            "inclusions": ["Verkostung von fünf Weinen", "Käseteller", "Guide"],
+            "category": "Food & Drink",
+        }
+    )
+
+
+def test_claim_mentioning_an_included_item_is_not_a_new_receivable() -> None:
+    # pilot full run gen-0008: "die offizielle Weinverkostung" on a wine tasting was rejected.
+    listing = _wine_tasting()
+    after = f"{listing.description} Dies ist die offizielle Weinverkostung der Stadt."
+    terms = ["offizielle", "offiziell"]
+    assert (
+        added_receivables(
+            listing.description,
+            after,
+            inclusions=listing.inclusions,
+            strip=terms,
+            claim_key="official",
+        )
+        == []
+    )
+    # Without wine in inclusions the same sentence would promise drinks.
+    assert added_receivables(listing.description, after, strip=terms, claim_key="official") == [
+        "drinks"
+    ]
+    # The generator's guard uses the same function.
+    spec = DefectSpec(defect_id="D3", method="llm", variant="unsupported_claim")
+    edit = next(
+        e
+        for seed in range(50)
+        if (e := llm_edit_for(spec, listing, random.Random(seed))).claim_key == "official"
+    )
+    data = {
+        "text_edits": [{"field": "description", "new_value": after}],
+        "spans": [{"field": "description", "span": "die offizielle Weinverkostung"}],
+    }
+    _, errors = apply_llm_edit(listing, edit, data, spec.variant)
+    assert not any("customer receives" in e for e in errors)
+
+
+def test_skip_the_line_may_mention_entry_but_not_other_receivables() -> None:
+    listing = clean_en().model_copy(update={"inclusions": ["Audio guide"]})
+    before = listing.description
+    entry = f"{before} Enjoy skip-the-line entry to the main hall."
+    lunch = f"{before} Enjoy skip-the-line entry and lunch in the café."
+    terms = ["skip-the-line", "skip the line"]
+    assert added_receivables(before, entry, strip=terms, claim_key="skip_the_line") == []
+    assert added_receivables(before, lunch, strip=terms, claim_key="skip_the_line") == ["food"]
+    # The tickets exemption belongs to skip-the-line only.
+    assert added_receivables(before, entry, strip=["official"], claim_key="official") == ["tickets"]
+
+
+def test_audit_ignores_receivables_from_other_seeds() -> None:
+    # full run gen-0075: a D2 claim and a D4 food promise in the same description.
+    pre = clean_de().model_copy(update={"inclusions": ["Kajak und Paddel", "Guide"]})
+    claim, promise = "Als Privattour buchbar.", "Ein Mittagessen am Ufer ist inbegriffen."
+    final = pre.model_copy(
+        update={
+            "description": f"{pre.description} {claim} {promise}",
+            "attributes": {**pre.attributes, "private": False},
+        }
+    )
+    seeded = [
+        {"defect_id": "D2", "variant": "claim_vs_attribute", "method": "llm",
+         "detail": {"claim_key": "private"}},
+        {"defect_id": "D4", "variant": "food_promised", "method": "llm", "detail": {}},
+    ]  # fmt: skip
+    labels = [
+        {"defect_id": "D2", "spans": [{"field": "description", "span": "Als Privattour buchbar"},
+                                      {"field": "attributes.private", "span": "false"}]},
+        {"defect_id": "D4", "spans": [{"field": "description", "span": "Ein Mittagessen am Ufer"}]},
+    ]  # fmt: skip
+    assert audit_listing(final, pre, seeded, labels)["claim_product"] == []
+    # If the claim itself carried the food, the audit still catches it.
+    labels[1]["spans"] = [{"field": "description", "span": "ist inbegriffen"}]
+    assert audit_listing(final, pre, seeded, labels)["claim_product"]
+
+
+@pytest.mark.parametrize(
+    ("title", "present"),
+    [
+        ("Wildlife spotting by 4WD near Athens", True),
+        ("Wildtierbeobachtung im Geländewagen (4WD) bei Budapest", True),
+        ("Wildtierbeobachtung im 4WD-Geländewagen bei Budapest", False),
+        ("Beginner climbing with GPS-guided route", False),
+    ],
+)
+def test_acronym_trap_needs_a_standalone_token(title: str, present: bool) -> None:
+    listing = clean_en().model_copy(update={"title": title})
+    assert trap_present("title_acronym_or_registered", "acronym:4WD|GPS", listing, CTX) is present
+
+
+def test_acronym_trap_instruction_asks_for_standalone_word() -> None:
+    from wanderlint.datagen.run import trap_instruction
+
+    text = trap_instruction(
+        TrapSpec(kind="title_acronym_or_registered", detail="acronym:SUP"), "de-DE"
+    )
+    assert "standalone word" in text and "SUP-Kurs" in text
+
+
+def test_d4_hard_case_falls_back_other_hard_cases_do_not() -> None:
+    hard_d4 = DefectSpec(defect_id="D4", method="llm", variant="pickup_promised", hard_case="D3/D4")
+    assert fallback_variants(hard_d4)[0] == "pickup_promised"
+    assert len(fallback_variants(hard_d4)) > 1
+    hard_d2 = DefectSpec(
+        defect_id="D2", method="llm", variant="claim_vs_attribute", hard_case="D2/D3"
+    )
+    assert fallback_variants(hard_d2) == ["claim_vs_attribute"]
+
+
+def test_meta_row_records_provenance() -> None:
+    from wanderlint.datagen.run import ListingResult
+
+    spec = plan_specs(10, 42, PlanConfig(), TAXONOMY.by_id()["D7"].categories)[0]
+    prov = {"git_commit": "abc123", "git_dirty": False, "prompt_version": "datagen_v5",
+            "taxonomy_version": 1}  # fmt: skip
+    row = meta_row(ListingResult(spec=spec, listing=clean_en()), prov)
+    assert {k: row[k] for k in prov} == prov

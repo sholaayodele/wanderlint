@@ -200,7 +200,7 @@ wanderlint/
     eval.py
     cost.py                   # token + € accounting, hard cost cap
     llm.py                    # cached, cost-tracked structured-output API calls
-    datagen/                  # synthetic data: vocab, plan (seeded specs), checks, inject, run
+    datagen/                  # synthetic data: vocab, plan (seeded specs), checks, inject, run, audit
   scripts/
     generate_listings.py
     audit_generated.py        # re-checks seeded data (claims, D4 overlap, seams, spans)
