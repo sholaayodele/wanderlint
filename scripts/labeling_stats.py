@@ -45,7 +45,8 @@ def main(
     )
     typer.echo(
         f"Median seconds per listing: {_num(st['median_seconds_per_listing'])} "
-        f"(blind {_num(st['median_blind_seconds'])}, reconcile {_num(st['median_reconcile_seconds'])}); "
+        f"(blind {_num(st['median_blind_seconds'])}, "
+        f"reconcile {_num(st['median_reconcile_seconds'])}); "
         f"excludes {st['time_capped_records']} time-capped record(s)"
     )
     typer.echo("")
