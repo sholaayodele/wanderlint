@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Git pre-commit hook: blocks the commit if lint or tests fail.
+# Install with: make install-hooks   (symlinks this file into .git/hooks/pre-commit)
+# Bypass in an emergency with: git commit --no-verify
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+echo "pre-commit: make lint" >&2
+if ! make lint >&2; then
+  echo "pre-commit: lint failed; commit blocked (make format fixes formatting)." >&2
+  exit 1
+fi
+
+echo "pre-commit: make test" >&2
+if ! make test >&2; then
+  echo "pre-commit: tests failed; commit blocked." >&2
+  exit 1
+fi

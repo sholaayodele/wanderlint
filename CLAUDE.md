@@ -288,6 +288,7 @@ uv sync --all-groups                                 # install (incl. dev + stre
 make test                                            # = uv run pytest
 make lint                                            # ruff check + ruff format --check
 make format                                          # ruff format
+make install-hooks                                   # once per clone: pre-commit hook runs lint + test, blocks on failure
 
 uv run python scripts/generate_listings.py --n 10 --seed 42 --dry-run   # plan + estimate, no API
 uv run python scripts/generate_listings.py --n 150 --seed 42 --yes      # > 20 listings needs --yes
@@ -305,6 +306,12 @@ uv run wanderlint eval --split dev  --prompt v1
 uv run wanderlint eval --split test --prompt v1      # milestones only
 make eval-gate                                       # dev + regression, fails on regression
 ```
+**Checks before code lands:** `make install-hooks` symlinks `scripts/pre-commit` into
+`.git/hooks/`; it runs `make lint` and `make test` and blocks the commit if either fails
+(`git commit --no-verify` bypasses it; don't, except in an emergency). CI
+(`.github/workflows/ci.yml`) runs the same lint + tests on every push and pull request with
+`uv sync --locked`: no API calls, no secrets.
+
 (Update this section when commands change.)
 
 ---

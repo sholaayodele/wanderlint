@@ -1,7 +1,12 @@
-.PHONY: install test lint format eval-gate label label-stats save-labels
+.PHONY: install install-hooks test lint format eval-gate label label-stats save-labels
 
 install:
 	uv sync --all-groups
+
+# Pre-commit hook: runs make lint + make test and blocks the commit if either fails.
+install-hooks:
+	ln -sf ../../scripts/pre-commit .git/hooks/pre-commit
+	@echo "Installed .git/hooks/pre-commit -> scripts/pre-commit"
 
 test:
 	uv run pytest
