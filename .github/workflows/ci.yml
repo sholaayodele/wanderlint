@@ -1,9 +1,10 @@
-# Lint + tests on every push. No API calls and no secrets: tests use fakes, never the API.
+# Lint + tests. No API calls and no secrets: tests use fakes, never the API.
+# Paused: manual trigger only until the GitHub billing lock is resolved.
+# To re-enable, restore `push:` and `pull_request:` under `on:`.
 name: CI
 
 on:
-  push:
-  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read

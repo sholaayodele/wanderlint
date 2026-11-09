@@ -309,8 +309,11 @@ make eval-gate                                       # dev + regression, fails o
 **Checks before code lands:** `make install-hooks` symlinks `scripts/pre-commit` into
 `.git/hooks/`; it runs `make lint` and `make test` and blocks the commit if either fails
 (`git commit --no-verify` bypasses it; don't, except in an emergency). CI
-(`.github/workflows/ci.yml`) runs the same lint + tests on every push and pull request with
-`uv sync --locked`: no API calls, no secrets.
+(`.github/workflows/ci.yml`) runs the same lint + tests with `uv sync --locked`: no API
+calls, no secrets.
+**CI paused until GitHub billing lock is resolved; pre-commit hook enforces lint + tests
+locally.** The workflow is manual-only (`workflow_dispatch`) for now; restore the `push` /
+`pull_request` triggers when billing is fixed.
 
 (Update this section when commands change.)
 
