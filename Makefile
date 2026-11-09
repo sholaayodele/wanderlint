@@ -19,7 +19,7 @@ eval-gate:
 	@exit 1
 
 label:
-	uv run --group label streamlit run scripts/label_app.py
+	uv run --group label streamlit run scripts/label_app.py --server.address localhost
 
 label-stats:
 	uv run python scripts/labeling_stats.py

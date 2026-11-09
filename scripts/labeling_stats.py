@@ -22,6 +22,10 @@ def _pct(x: float | None) -> str:
     return "  –  " if x is None else f"{x:5.1%}"
 
 
+def _num(x: float | None) -> str:
+    return "–" if x is None else f"{x}"
+
+
 def main(
     json_out: Annotated[Path | None, typer.Option("--json", help="Write stats as JSON.")] = None,
 ) -> None:
@@ -40,8 +44,8 @@ def main(
         "(blind labels kept in gold)"
     )
     typer.echo(
-        f"Median seconds per listing: {st['median_seconds_per_listing']} "
-        f"(blind {st['median_blind_seconds']}, reconcile {st['median_reconcile_seconds']}); "
+        f"Median seconds per listing: {_num(st['median_seconds_per_listing'])} "
+        f"(blind {_num(st['median_blind_seconds'])}, reconcile {_num(st['median_reconcile_seconds'])}); "
         f"excludes {st['time_capped_records']} time-capped record(s)"
     )
     typer.echo("")

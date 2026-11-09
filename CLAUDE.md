@@ -292,7 +292,7 @@ make format                                          # ruff format
 uv run python scripts/generate_listings.py --n 10 --seed 42 --dry-run   # plan + estimate, no API
 uv run python scripts/generate_listings.py --n 150 --seed 42 --yes      # > 20 listings needs --yes
 uv run python scripts/audit_generated.py                                 # deterministic audit of generated data
-uv run --group label streamlit run scripts/label_app.py           # = make label
+uv run --group label streamlit run scripts/label_app.py --server.address localhost   # = make label
 uv run python scripts/labeling_stats.py                            # = make label-stats
 make save-labels                                                   # commit + push data/labels/*.jsonl
 uv run python scripts/kappa.py
