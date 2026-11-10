@@ -1,0 +1,9 @@
+{"listing_id":"gen-0001","defect_id":"D2","spans":[{"field":"description","span":"The car is wheelchair accessible and air-conditioned"},{"field":"attributes.wheelchair_accessible","span":"false"}],"label_source":"confirmed"}
+{"listing_id":"gen-0090","defect_id":"D2","spans":[{"field":"attributes.max_group_size","span":"8"}],"label_source":"added_by_human"}
+{"listing_id":"gen-0095","defect_id":"D5","spans":[{"field":"description","span":"2.500,5 metres"}],"label_source":"confirmed"}
+{"listing_id":"gen-0095","defect_id":"D7","spans":[{"field":"category","span":"Adventure Sports"}],"label_source":"confirmed"}
+{"listing_id":"gen-0104","defect_id":"D3","spans":[{"field":"description","span":"skip-the-line entry"}],"label_source":"confirmed"}
+{"listing_id":"gen-0104","defect_id":"D4","spans":[{"field":"description","span":"Entry tickets to the observation hides are included"}],"label_source":"confirmed"}
+{"listing_id":"gen-0107","defect_id":"D5","spans":[{"field":"description","span":"Das entspannte Tempo lässt Zeit für jeden Bissen und jede Nummer."}],"label_source":"confirmed"}
+{"listing_id":"gen-0107","defect_id":"D7","spans":[{"field":"tags","span":"Kids"}],"label_source":"confirmed"}
+{"listing_id":"gen-0107","defect_id":"D8","spans":[{"field":"short_description","span":"Enjoy a live cabaret-style performance while sampling a multi-course menu of modern Danish flavours in an intimate city-centre venue."}],"label_source":"confirmed"}
