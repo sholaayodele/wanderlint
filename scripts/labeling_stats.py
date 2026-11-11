@@ -2,8 +2,10 @@
 
 Usage: uv run python scripts/labeling_stats.py [--json out.json]
 Reads data/labels/labeling_log.jsonl (latest record per listing). No API calls.
-The blind human baseline is reported with and without the calibration listings (the first
-CALIBRATION_N listings labeled); their labels stay in gold either way.
+The blind human baseline is reported for all listings, without the calibration listings (the
+first CALIBRATION_N labeled; their labels stay in gold) and for checklist-mode listings only
+(blind_mode="checklist"). Drop reasons: rule = guide rule says it's not this defect,
+misread = misread the listing, other, ? = not recorded (free-mode records).
 """
 
 from __future__ import annotations
@@ -55,6 +57,7 @@ def main(
     st = compute_stats(records.values())
     b_all = baseline(st)
     b_excl = baseline(compute_stats(r for lid, r in records.items() if lid not in calib))
+    b_check = baseline(compute_stats(r for r in records.values() if r.blind_mode == "checklist"))
 
     typer.echo(f"Listings labeled: {st['listings_labeled']}/{total}")
     typer.echo(
@@ -75,20 +78,31 @@ def main(
     )
     typer.echo(_baseline_row("all listings", b_all))
     typer.echo(_baseline_row("excluding calibration", b_excl))
+    typer.echo(_baseline_row("checklist listings", b_check))
     typer.echo("")
+    typer.echo("All listings, per type (blind = blind claims; drops rule/misread/other/?)")
     typer.echo(
-        "type  seeds  rej  retyped  rej.rate  added  conf  blind.rec  blind  dropped  blind.prec"
-        "  | excl. calibration: rec   prec"
+        "type  seeds  rej  retyped  rej.rate  added  conf  blind.rec  blind  dropped  "
+        "blind.prec  drops r/m/o/?"
     )
     for d in DEFECT_IDS:
         t = st["per_type"][d]
-        x = b_excl["per_type"][d]
+        why = t["drop_reasons"]
+        drops = f"{why['guide_rule']}/{why['misread']}/{why['other']}/{why['unrecorded']}"
         typer.echo(
             f"{d:4}  {t['seeds']:5}  {t['rejected']:3}  {t['retyped']:7}  "
             f"{_pct(t['rejection_rate']):>8}  {t['human_added']:5}  {t['confirmed_seeds']:4}  "
             f"{_pct(t['blind_recall']):>9}  {t['blind_labels']:5}  "
-            f"{t['blind_dropped_after_reveal']:7}  {_pct(t['blind_precision']):>10}"
-            f"  |                    {_pct(x['blind_recall']):>5}  {_pct(x['blind_precision']):>5}"
+            f"{t['blind_dropped_after_reveal']:7}  {_pct(t['blind_precision']):>10}  {drops:>13}"
+        )
+    typer.echo("")
+    typer.echo(f"Checklist baseline per type ({b_check['listings_labeled']} listings)")
+    typer.echo("type  conf  yes  unsure  recall  precision")
+    for d in DEFECT_IDS:
+        x = b_check["per_type"][d]
+        typer.echo(
+            f"{d:4}  {x['confirmed_seeds']:4}  {x['blind_labels']:3}  {x['blind_unsure']:6}  "
+            f"{_pct(x['blind_recall']):>6}  {_pct(x['blind_precision']):>9}"
         )
     if json_out:
         out = {
@@ -96,6 +110,7 @@ def main(
             "calibration_listing_ids": calib,
             "baseline_all": b_all,
             "baseline_excluding_calibration": b_excl,
+            "baseline_checklist": b_check,
         }
         json_out.write_text(json.dumps(out, indent=2), encoding="utf-8")
 

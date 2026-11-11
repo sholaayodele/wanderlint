@@ -12,14 +12,19 @@ from wanderlint.labeling import (
     REJECTED,
     UNSURE,
     BlindLabel,
+    ChecklistAnswer,
+    DropReason,
+    LogRecord,
     PhaseTimer,
     ReconcileError,
     SeedOutcome,
     baseline,
+    blind_claims,
     build_record,
     calibration_ids,
     cap_seconds,
     cheat_sheet,
+    checklist_problems,
     compute_stats,
     defect_hints,
     field_choices,
@@ -27,6 +32,7 @@ from wanderlint.labeling import (
     latest_records,
     match_seeds,
     reconcile,
+    reconcile_checklist,
     resume_index,
     save_record,
     validate_span,
@@ -431,3 +437,176 @@ def test_baseline_with_and_without_calibration(tmp_path: Path) -> None:
     assert b_excl["per_type"]["D5"]["blind_precision"] == 1.0
     # calibration labels stay in gold
     assert {g["listing_id"] for g in _rows(tmp_path / GOLD)} == {"c1", "c2", "a1", "a2"}
+
+
+# --- Checklist blind pass ------------------------------------------------------------
+
+
+def answers(**kw: str | tuple) -> list[ChecklistAnswer]:
+    """answers(D2=("yes", ["description"]), D5=("unsure", "why")); unspecified types = No."""
+    out = []
+    for d in [f"D{i}" for i in range(1, 9)]:
+        v = kw.get(d, "no")
+        if isinstance(v, tuple) and v[0] == "yes":
+            out.append(ChecklistAnswer(defect_id=d, answer="yes", fields=list(v[1])))
+        elif isinstance(v, tuple) and v[0] == "unsure":
+            out.append(ChecklistAnswer(defect_id=d, answer="unsure", reason=v[1]))
+        else:
+            out.append(ChecklistAnswer(defect_id=d, answer="no"))
+    return out
+
+
+def test_checklist_problems_gate_the_reveal() -> None:
+    assert len(checklist_problems([])) == 8  # nothing answered
+    full = answers(D2=("yes", ["description"]), D5=("unsure", "German tag?"))
+    assert checklist_problems(full) == []
+    assert checklist_problems(full[:7]) == ["D8: not answered"]
+    no_fields = answers(D2=("yes", []))
+    assert checklist_problems(no_fields) == ["D2: pick the field(s)"]
+    no_reason = answers(D5=("unsure", "  "))
+    assert checklist_problems(no_reason) == ["D5: give a one-line reason"]
+
+
+def test_checklist_yes_matching_confirmed_seed_needs_no_spans() -> None:
+    final, rejected = reconcile_checklist(
+        LID,
+        answers(D2=("yes", ["description"])),
+        [seed("D2", ACCESS, ATTR)],
+        [SeedOutcome(defect_id="D2", action="confirm")],
+    )
+    assert rejected == []
+    assert [(g.defect_id, g.label_source, g.spans) for g in final] == [
+        ("D2", "confirmed", [ACCESS, ATTR])
+    ]
+
+
+def test_checklist_yes_without_seed_is_human_added_and_needs_spans() -> None:
+    a = answers(D1=("yes", ["meeting_point"]))
+    with pytest.raises(ReconcileError, match="D1: add at least one span"):
+        reconcile_checklist(LID, a, [], [])
+    final, _ = reconcile_checklist(LID, a, [], [], human_spans={"D1": [EMPTY_MP]})
+    assert [(g.defect_id, g.label_source, g.spans) for g in final] == [
+        ("D1", "added_by_human", [EMPTY_MP])
+    ]
+
+
+def test_checklist_drop_needs_reason_and_only_for_yes() -> None:
+    a = answers(D1=("yes", ["meeting_point"]))
+    final, _ = reconcile_checklist(
+        LID, a, [], [], drops=[DropReason(defect_id="D1", reason="misread")]
+    )
+    assert final == []
+    with pytest.raises(ReconcileError, match="describe"):
+        reconcile_checklist(LID, a, [], [], drops=[DropReason(defect_id="D1", reason="other")])
+    with pytest.raises(ReconcileError, match="only a blind Yes"):
+        reconcile_checklist(LID, a, [], [], drops=[DropReason(defect_id="D3", reason="guide_rule")])
+
+
+def test_checklist_reject_seed_with_kept_yes_is_contradictory() -> None:
+    a = answers(D3=("yes", ["description"]))
+    seeds = [seed("D3", ACCESS)]
+    reject = [SeedOutcome(defect_id="D3", action="reject", reason="not a claim")]
+    with pytest.raises(ReconcileError, match="drop it or confirm"):
+        reconcile_checklist(LID, a, seeds, reject)
+    final, rejected = reconcile_checklist(
+        LID, a, seeds, reject, drops=[DropReason(defect_id="D3", reason="guide_rule")]
+    )
+    assert final == [] and [r.defect_id for r in rejected] == ["D3"]
+
+
+def test_checklist_incomplete_cannot_reconcile() -> None:
+    with pytest.raises(ReconcileError, match="Checklist incomplete"):
+        reconcile_checklist(LID, answers()[:5], [], [])
+
+
+def checklist_record(lid: str = LID, **kw):
+    defaults = dict(
+        blind=[],
+        unsure=[],
+        seeds=[seed("D2", ACCESS, ATTR), seed("D3", sp("title", "Fira"))],
+        outcomes=[
+            SeedOutcome(defect_id="D2", action="confirm"),
+            SeedOutcome(defect_id="D3", action="confirm"),
+        ],
+        dropped_blind=(),
+        removed_spans=[],
+        blind_seconds=90.0,
+        reconcile_seconds=30.0,
+        saved_at="t",
+        blind_mode="checklist",
+        checklist=answers(
+            D2=("yes", ["description", "attributes.wheelchair_accessible"]),
+            D1=("yes", ["meeting_point"]),
+            D7=("yes", ["tags"]),
+            D5=("unsure", "is 'Private' a German tag?"),
+            D8=("unsure", "title length?"),
+        ),
+        drop_reasons=[DropReason(defect_id="D7", reason="other", note="tag is fine")],
+        human_spans={"D1": [EMPTY_MP]},
+    )
+    defaults.update(kw)
+    return build_record(lid, **defaults)
+
+
+def test_checklist_record_save_and_outputs(tmp_path: Path) -> None:
+    rec = checklist_record()
+    assert rec.blind_mode == "checklist" and rec.blind_labels == []
+    assert rec.dropped_blind == ["D7"]
+    assert [(g.defect_id, g.label_source) for g in rec.final_labels] == [
+        ("D1", "added_by_human"),
+        ("D2", "confirmed"),
+        ("D3", "confirmed"),
+    ]
+    # open Unsure answers go to unsure.jsonl (types not resolved into gold)
+    assert [(u.candidate_defect_ids, u.reason) for u in rec.unsure] == [
+        (["D5"], "is 'Private' a German tag?"),
+        (["D8"], "title length?"),
+    ]
+    save_record(tmp_path, rec)
+    (log,) = _rows(tmp_path / LOG)
+    assert log["blind_mode"] == "checklist"
+    assert log["drop_reasons"] == [{"defect_id": "D7", "reason": "other", "note": "tag is fine"}]
+    assert len(log["checklist"]) == 8
+    assert len(_rows(tmp_path / UNSURE)) == 2
+    # re-edit keeps the checklist and the mode, even if the caller passes something else
+    again = checklist_record(previous=rec, checklist=answers(), drop_reasons=rec.drop_reasons)
+    assert again.checklist == rec.checklist and again.blind_mode == "checklist" and again.edited
+
+
+def test_legacy_free_records_still_load() -> None:
+    legacy = {
+        "listing_id": LID,
+        "blind_labels": [{"defect_id": "D1", "spans": [{"field": "meeting_point", "span": ""}]}],
+        "seeds": [],
+        "seed_outcomes": [],
+        "dropped_blind": ["D1"],
+        "final_labels": [],
+        "rejected": [],
+        "saved_at": "t",
+    }
+    r = LogRecord(**legacy)
+    assert r.blind_mode == "free" and r.checklist == [] and r.drop_reasons == []
+    assert blind_claims(r) == {"D1"}
+
+
+def test_stats_from_checklist_answers_and_checklist_baseline() -> None:
+    rec = checklist_record()  # Yes: D1 (kept, no seed), D2 (seed confirmed), D7 (dropped)
+    st = compute_stats([rec])
+    t = st["per_type"]
+    assert st["checklist_listings"] == 1
+    # recall per (listing, type) from checklist answers: D2 Yes + confirmed, D3 No + confirmed
+    assert st["blind_recall"] == 0.5
+    assert t["D2"]["blind_recall"] == 1.0 and t["D3"]["blind_recall"] == 0.0
+    # precision: Yes kept in gold / all Yes = D1, D2 of D1, D2, D7
+    assert st["blind_precision"] == 0.667
+    assert t["D7"]["blind_dropped_after_reveal"] == 1
+    assert t["D7"]["drop_reasons"] == {"guide_rule": 0, "misread": 0, "other": 1, "unrecorded": 0}
+    assert t["D5"]["blind_unsure"] == 1 and t["D8"]["blind_unsure"] == 1
+    # free-mode drops have no recorded reason
+    st_free = compute_stats([record()])
+    assert st_free["per_type"]["D3"]["drop_reasons"]["unrecorded"] == 1
+    assert st_free["checklist_listings"] == 0
+    # the checklist baseline excludes free-mode records
+    mixed = [record(), rec]
+    b_check = baseline(compute_stats(r for r in mixed if r.blind_mode == "checklist"))
+    assert b_check["listings_labeled"] == 1 and b_check["blind_recall"] == 0.5

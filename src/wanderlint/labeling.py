@@ -38,6 +38,14 @@ UNSURE = "unsure.jsonl"
 LOG = "labeling_log.jsonl"
 
 SeedAction = Literal["confirm", "reject", "retype"]
+BlindMode = Literal["free", "checklist"]
+Answer = Literal["yes", "no", "unsure"]
+DropCode = Literal["guide_rule", "misread", "other"]
+DROP_REASONS: dict[str, str] = {
+    "guide_rule": "guide rule says it's not this defect",
+    "misread": "misread the listing",
+    "other": "other",
+}
 
 
 class _Strict(BaseModel):
@@ -56,8 +64,29 @@ class SeedOutcome(_Strict):
     new_defect_id: DefectId | None = None  # retype only
 
 
+class ChecklistAnswer(_Strict):
+    """Blind-pass answer for one defect type. Yes needs field(s), Unsure a reason; no spans."""
+
+    defect_id: DefectId
+    answer: Answer
+    fields: list[str] = Field(default_factory=list)
+    reason: str = ""
+
+
+class DropReason(_Strict):
+    """Why a blind Yes was dropped after the reveal."""
+
+    defect_id: DefectId
+    reason: DropCode
+    note: str = ""
+
+
 class LogRecord(_Strict):
     listing_id: str
+    # "free": legacy free-form blind labels with spans; "checklist": Yes/No/Unsure per type
+    blind_mode: BlindMode = "free"
+    checklist: list[ChecklistAnswer] = Field(default_factory=list)
+    drop_reasons: list[DropReason] = Field(default_factory=list)
     blind_labels: list[BlindLabel] = Field(default_factory=list)
     unsure: list[UnsureLabel] = Field(default_factory=list)
     seeds: list[GoldLabel] = Field(default_factory=list)
@@ -174,7 +203,18 @@ def reconcile(
     blind label of the same type is contradictory: drop the blind label or confirm the seed.
     """
     dropped = set(dropped_blind)
-    kept_blind = {d: s for d, s in blind_by_type(blind).items() if d not in dropped}
+    claimed = {d: s for d, s in blind_by_type(blind).items() if d not in dropped}
+    return _reconcile_claims(listing_id, claimed, seeds, outcomes, removed_spans)
+
+
+def _reconcile_claims(
+    listing_id: str,
+    kept_blind: dict[str, list[Span]],
+    seeds: list[GoldLabel],
+    outcomes: list[SeedOutcome],
+    removed_spans: Iterable[tuple[str, Span]] = (),
+) -> tuple[list[GoldLabel], list[RejectedSeed]]:
+    """Shared core: `kept_blind` = the types the annotator still claims, with their spans."""
     by_outcome = {o.defect_id: o for o in outcomes}
     final: dict[str, tuple[str, list[Span]]] = {}
     rejected: list[RejectedSeed] = []
@@ -213,11 +253,89 @@ def reconcile(
         if d not in final:
             continue
         src, spans = final[d]
+        if not spans:
+            raise ReconcileError(f"{d}: add at least one span (verbatim) or drop the label")
         spans = [s for s in spans if (d, s) not in removed]
         if not spans:
             raise ReconcileError(f"{d}: every span was removed; keep one or drop the label")
         labels.append(GoldLabel(listing_id=listing_id, defect_id=d, spans=spans, label_source=src))
     return labels, rejected
+
+
+# --- Checklist blind pass -----------------------------------------------------
+
+
+def _by_type(items: Iterable[ChecklistAnswer | DropReason]) -> dict:
+    return {i.defect_id: i for i in items}
+
+
+def checklist_problems(answers: Iterable[ChecklistAnswer]) -> list[str]:
+    """What still blocks the reveal: every type answered, Yes with field(s), Unsure with reason."""
+    by = _by_type(answers)
+    out = []
+    for d in DEFECT_IDS:
+        a = by.get(d)
+        if a is None:
+            out.append(f"{d}: not answered")
+        elif a.answer == "yes" and not a.fields:
+            out.append(f"{d}: pick the field(s)")
+        elif a.answer == "unsure" and not a.reason.strip():
+            out.append(f"{d}: give a one-line reason")
+    return out
+
+
+def checklist_yes(answers: Iterable[ChecklistAnswer]) -> list[str]:
+    by = _by_type(answers)
+    return [d for d in DEFECT_IDS if d in by and by[d].answer == "yes"]
+
+
+def reconcile_checklist(
+    listing_id: str,
+    answers: list[ChecklistAnswer],
+    seeds: list[GoldLabel],
+    outcomes: list[SeedOutcome],
+    drops: list[DropReason] = (),
+    human_spans: dict[str, list[Span]] | None = None,
+    removed_spans: Iterable[tuple[str, Span]] = (),
+) -> tuple[list[GoldLabel], list[RejectedSeed]]:
+    """Reconcile a checklist blind pass with the seeds.
+
+    A blind Yes is kept unless dropped (with a reason). A kept Yes matching a confirmed seed
+    takes the seed spans (+ any spans entered); a kept Yes without one becomes `added_by_human`
+    and needs ≥ 1 verbatim span entered in reconcile. Seed rules as in `reconcile`.
+    """
+    problems = checklist_problems(answers)
+    if problems:
+        raise ReconcileError("Checklist incomplete: " + "; ".join(problems))
+    yes = checklist_yes(answers)
+    dropped = _by_type(drops)
+    for d, dr in dropped.items():
+        if d not in yes:
+            raise ReconcileError(f"{d}: only a blind Yes can be dropped")
+        if dr.reason == "other" and not dr.note.strip():
+            raise ReconcileError(f"{d}: describe the 'other' drop reason")
+    spans = human_spans or {}
+    claimed = {d: list(spans.get(d, [])) for d in yes if d not in dropped}
+    return _reconcile_claims(listing_id, claimed, seeds, outcomes, removed_spans)
+
+
+def checklist_unsure(
+    listing_id: str, answers: Iterable[ChecklistAnswer], final_types: Iterable[str]
+) -> list[UnsureLabel]:
+    """Blind Unsure answers still open after reconcile (types that didn't end up in gold)."""
+    done = set(final_types)
+    return [
+        UnsureLabel(listing_id=listing_id, candidate_defect_ids=[a.defect_id], reason=a.reason)
+        for a in answers
+        if a.answer == "unsure" and a.defect_id not in done
+    ]
+
+
+def blind_claims(record: LogRecord) -> set[str]:
+    """The defect types the annotator claimed in the blind pass (per listing, per type)."""
+    if record.blind_mode == "checklist":
+        return set(checklist_yes(record.checklist))
+    return set(blind_by_type(record.blind_labels))
 
 
 # --- Timing -------------------------------------------------------------------
@@ -268,18 +386,43 @@ def build_record(
     reconcile_seconds: float,
     saved_at: str,
     previous: LogRecord | None = None,
+    blind_mode: BlindMode = "free",
+    checklist: list[ChecklistAnswer] = (),
+    drop_reasons: list[DropReason] = (),
+    human_spans: dict[str, list[Span]] | None = None,
 ) -> LogRecord:
-    """A log record for one save. Re-edits keep the original blind pass and add reconcile time."""
+    """A log record for one save. Re-edits keep the original blind pass and add reconcile time.
+
+    Free mode: `blind` labels with spans, `dropped_blind` types. Checklist mode: `checklist`
+    answers, `drop_reasons` (one per dropped Yes), spans for kept Yes in `human_spans`; the
+    record's unsure entries are the checklist's open Unsure answers.
+    """
     if previous is not None:
         blind = previous.blind_labels
+        blind_mode = previous.blind_mode
+        checklist = previous.checklist
         blind_seconds = previous.blind_seconds
         reconcile_seconds += previous.reconcile_seconds
-    dropped = sorted(set(dropped_blind) & set(blind_by_type(blind)))
-    final, rejected = reconcile(listing_id, blind, seeds, outcomes, dropped, removed_spans)
+    checklist = list(checklist)
+    drop_reasons = list(drop_reasons) if blind_mode == "checklist" else []
+    if blind_mode == "checklist":
+        blind = []
+        final, rejected = reconcile_checklist(
+            listing_id, checklist, seeds, outcomes, drop_reasons, human_spans, removed_spans
+        )
+        dropped = sorted(dr.defect_id for dr in drop_reasons)
+        unsure = checklist_unsure(listing_id, checklist, [g.defect_id for g in final])
+    else:
+        checklist = []
+        dropped = sorted(set(dropped_blind) & set(blind_by_type(blind)))
+        final, rejected = reconcile(listing_id, blind, seeds, outcomes, dropped, removed_spans)
     b, b_cap = cap_seconds(blind_seconds)
     r, r_cap = cap_seconds(reconcile_seconds)
     return LogRecord(
         listing_id=listing_id,
+        blind_mode=blind_mode,
+        checklist=checklist,
+        drop_reasons=drop_reasons,
         blind_labels=blind,
         unsure=unsure,
         seeds=seeds,
@@ -333,7 +476,16 @@ def baseline(stats: dict) -> dict:
         "time_capped_records",
     )
     per_type = {
-        d: {k: t[k] for k in ("confirmed_seeds", "blind_recall", "blind_labels", "blind_precision")}
+        d: {
+            k: t[k]
+            for k in (
+                "confirmed_seeds",
+                "blind_recall",
+                "blind_labels",
+                "blind_unsure",
+                "blind_precision",
+            )
+        }
         for d, t in stats["per_type"].items()
     }
     return {**{k: stats[k] for k in keys}, "per_type": per_type}
@@ -425,8 +577,15 @@ def compute_stats(records: Iterable[LogRecord]) -> dict:
     recs = list(records)
     seeds, rejected, retyped, confirmed, blind_hit = (Counter() for _ in range(5))
     human_added, blind_all, blind_kept, blind_dropped = (Counter() for _ in range(4))
+    blind_unsure: Counter = Counter()
+    drop_why: dict[str, Counter] = {d: Counter() for d in DEFECT_IDS}
     for r in recs:
-        blind = blind_by_type(r.blind_labels)
+        blind = blind_claims(r)
+        for a in r.checklist:
+            blind_unsure[a.defect_id] += a.answer == "unsure"
+        reasons = {dr.defect_id: dr.reason for dr in r.drop_reasons}
+        for d in r.dropped_blind:
+            drop_why[d][reasons.get(d, "unrecorded")] += 1
         final_types = {g.defect_id for g in r.final_labels}
         for o in r.seed_outcomes:
             seeds[o.defect_id] += 1
@@ -454,6 +613,8 @@ def compute_stats(records: Iterable[LogRecord]) -> dict:
             "blind_recall": _rate(blind_hit[d], confirmed[d]),
             "blind_labels": blind_all[d],
             "blind_dropped_after_reveal": blind_dropped[d],
+            "drop_reasons": {k: drop_why[d][k] for k in [*DROP_REASONS, "unrecorded"]},
+            "blind_unsure": blind_unsure[d],
             "blind_precision": _rate(blind_kept[d], blind_all[d]),
         }
         for d in DEFECT_IDS
@@ -461,6 +622,7 @@ def compute_stats(records: Iterable[LogRecord]) -> dict:
     uncapped = [r for r in recs if not r.time_capped]
     return {
         "listings_labeled": len(recs),
+        "checklist_listings": sum(r.blind_mode == "checklist" for r in recs),
         "seeds": sum(seeds.values()),
         "rejected": sum(rejected.values()),
         "retyped": sum(retyped.values()),

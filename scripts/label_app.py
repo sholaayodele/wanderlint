@@ -1,5 +1,10 @@
 """Streamlit labeling tool: blind-then-reveal (labeling_guide.md §1, §6).
 
+Blind pass = a checklist: Yes / No / Unsure for each defect type D1–D8 (Yes: field(s), no span;
+Unsure: a one-line reason). Reveal is disabled until all 8 are answered. Reconcile: decide each
+seed; a blind Yes without a seed becomes added_by_human (spans entered here) unless dropped with
+a reason. Records saved before the checklist (blind_mode "free") can still be re-edited.
+
 Run: uv run streamlit run scripts/label_app.py
 Logic lives in wanderlint.labeling; this file is UI only. It reads the generated listings and
 seeded labels only, never generated_meta.jsonl (hard-case / trap info would leak the answer).
@@ -17,8 +22,10 @@ import yaml
 
 from wanderlint.labeling import (
     DEFECT_IDS,
+    DROP_REASONS,
     PHASE_CAP_S,
-    BlindLabel,
+    ChecklistAnswer,
+    DropReason,
     LogRecord,
     PhaseTimer,
     ReconcileError,
@@ -26,6 +33,7 @@ from wanderlint.labeling import (
     blind_by_type,
     build_record,
     cheat_sheet,
+    checklist_problems,
     defect_hints,
     field_choices,
     field_options,
@@ -35,6 +43,7 @@ from wanderlint.labeling import (
     load_seeds,
     match_seeds,
     reconcile,
+    reconcile_checklist,
     resume_index,
     save_record,
     validate_span,
@@ -43,6 +52,7 @@ from wanderlint.models import Listing, Span, UnsureLabel
 
 ROOT = Path(__file__).resolve().parents[1]
 ACTIONS = {"confirm": "Confirm", "reject": "Reject", "retype": "Change type"}
+ANSWERS = {"yes": "Yes", "no": "No", "unsure": "Unsure"}
 
 
 @st.cache_data
@@ -86,6 +96,10 @@ def _state():
 
 def _new_work(lid: str, prev: LogRecord | None) -> dict:
     w = {
+        "mode": prev.blind_mode if prev is not None else "checklist",
+        "checklist": {},  # d -> {"answer", "fields", "reason"}
+        "drops": {},  # d -> {"reason", "note"}
+        "human_spans": {},  # d -> [Span] entered in reconcile
         "blind": [],
         "unsure": [],
         "revealed": False,
@@ -95,7 +109,21 @@ def _new_work(lid: str, prev: LogRecord | None) -> dict:
         "removed": [],
         "prev": prev,
     }
-    if prev is not None:  # re-edit: blind pass is locked, only reconcile changes
+    if prev is not None and prev.blind_mode == "checklist":
+        w["checklist"] = {a.defect_id: a.model_dump() for a in prev.checklist}
+        w["drops"] = {dr.defect_id: dr.model_dump() for dr in prev.drop_reasons}
+        w["revealed"] = True
+        w["outcomes"] = {o.defect_id: o.model_dump() for o in prev.seed_outcomes}
+        seed_spans = {g.defect_id: g.spans for g in prev.seeds}
+        for g in prev.final_labels:
+            extra = [x for x in g.spans if x not in seed_spans.get(g.defect_id, [])]
+            if extra:
+                w["human_spans"][g.defect_id] = extra
+        final = {g.defect_id: g.spans for g in prev.final_labels}
+        w["removed"] = [
+            (d, x) for d, sps in seed_spans.items() if d in final for x in sps if x not in final[d]
+        ]
+    elif prev is not None:  # free-mode re-edit: blind pass is locked, only reconcile changes
         w["blind"] = list(prev.blind_labels)
         w["unsure"] = list(prev.unsure)
         w["revealed"] = True
@@ -105,7 +133,7 @@ def _new_work(lid: str, prev: LogRecord | None) -> dict:
             full, _ = reconcile(
                 lid, prev.blind_labels, prev.seeds, prev.seed_outcomes, prev.dropped_blind
             )
-            kept = {(g.defect_id, s) for g in prev.final_labels for s in g.spans}
+            kept = [(g.defect_id, s) for g in prev.final_labels for s in g.spans]
             w["removed"] = [
                 (g.defect_id, s) for g in full for s in g.spans if (g.defect_id, s) not in kept
             ]
@@ -188,56 +216,100 @@ def _span_line(sp: Span) -> str:
     return f"`{sp.field}`: “{shown}”"
 
 
-def render_blind(lid: str, lst: Listing, w: dict) -> None:
-    locked = w["prev"] is not None
-    st.subheader("Your labels" + (" (blind pass, locked)" if locked else " (blind pass)"))
+def render_blind_free(w: dict) -> None:
+    """Read-only view of a legacy free-mode blind pass (records saved before the checklist)."""
+    st.subheader("Your labels (free-form blind pass, locked)")
     by_type = blind_by_type(w["blind"])
     if not by_type:
-        st.caption("No labels yet. A clean listing is a valid answer.")
+        st.caption("No blind labels.")
     for d, spans in by_type.items():
         st.markdown(f"**{_dname(d)}**")
-        for j, sp in enumerate(spans):
-            c1, c2 = st.columns([10, 1])
-            c1.markdown(_span_line(sp))
-            if not locked and c2.button("✕", key=f"{lid}:rm:{d}:{j}", help="Remove this span"):
-                w["blind"] = [
-                    BlindLabel(defect_id=b.defect_id, spans=[x for x in b.spans if x != sp])
-                    for b in w["blind"]
-                    if b.defect_id != d or [x for x in b.spans if x != sp]
-                ]
-                st.rerun()
-    if locked or w["revealed"]:
+        for sp in spans:
+            st.markdown(_span_line(sp))
+
+
+def _answers(w: dict) -> list[ChecklistAnswer]:
+    return [ChecklistAnswer(**a) for a in w["checklist"].values() if a.get("answer")]
+
+
+def _answer_line(a: dict | None) -> str:
+    if not a or not a.get("answer"):
+        return "—"
+    if a["answer"] == "yes":
+        return "**Yes** · " + ", ".join(f"`{f}`" for f in a["fields"])
+    if a["answer"] == "unsure":
+        return f"**Unsure** · {a['reason']}"
+    return "No"
+
+
+def render_checklist(lid: str, lst: Listing, w: dict) -> None:
+    if w["revealed"]:
+        st.subheader("Your checklist (blind pass, locked)")
+        for d in DEFECT_IDS:
+            st.markdown(f"{_dname(d)}: {_answer_line(w['checklist'].get(d))}")
         return
-    with st.container(border=True):
-        st.markdown("**Add a span**")
-        d = st.selectbox(
-            "Defect type",
-            DEFECT_IDS,
-            format_func=_dname,
-            key=f"{lid}:d",
-            help="\n\n".join(f"**{x}** {HINTS[x][0]}: {HINTS[x][1]}" for x in DEFECT_IDS),
+    st.subheader("Blind checklist")
+    st.caption("Answer every type. Yes: pick the field(s), no span needed. Unsure: one line why.")
+    for d in DEFECT_IDS:
+        a = w["checklist"].setdefault(
+            d, {"defect_id": d, "answer": None, "fields": [], "reason": ""}
         )
-        st.caption(HINTS[d][1])
-        field = st.selectbox("Field", field_options(lst), key=f"{lid}:f")
-        choices = field_choices(lst, field)
-        with st.form(f"{lid}:span_form", clear_on_submit=True, border=False):
-            if choices is None:
-                raw = st.text_area(
-                    "Span (verbatim; leave empty only if the field is empty)", height=68
+        with st.container(border=True):
+            st.markdown(f"**{_dname(d)}**")
+            st.caption(HINTS[d][1])
+            opts = list(ANSWERS)
+            a["answer"] = st.radio(
+                d,
+                opts,
+                index=opts.index(a["answer"]) if a["answer"] in opts else None,
+                format_func=ANSWERS.get,
+                horizontal=True,
+                label_visibility="collapsed",
+                key=f"{lid}:ans:{d}",
+            )
+            if a["answer"] == "yes":
+                a["fields"] = st.multiselect(
+                    "Field(s)", field_options(lst), default=a["fields"], key=f"{lid}:flds:{d}"
                 )
-                value = raw.strip()
             else:
-                value = st.selectbox("Value", choices, format_func=lambda v: v or "(empty)")
-            if st.form_submit_button("Add span"):
-                sp = Span(field=field, span=value)
-                err = validate_span(lst, sp)
-                if err:
-                    st.error(err)
-                elif sp in by_type.get(d, []):
-                    st.warning("Already added.")
-                else:
-                    w["blind"].append(BlindLabel(defect_id=d, spans=[sp]))
-                    st.rerun()
+                a["fields"] = []
+            if a["answer"] == "unsure":
+                a["reason"] = st.text_input(
+                    "Why unsure (one line)", value=a["reason"], key=f"{lid}:unsure:{d}"
+                ).strip()
+            else:
+                a["reason"] = ""
+
+
+def _span_adder(lid: str, lst: Listing, d: str, spans: list[Span], fields: list[str]) -> None:
+    """Enter verbatim spans for a human-added label (same validation as everywhere)."""
+    for j, sp in enumerate(list(spans)):
+        c1, c2 = st.columns([10, 1])
+        c1.markdown(_span_line(sp))
+        if c2.button("✕", key=f"{lid}:hsrm:{d}:{j}", help="Remove this span"):
+            spans.remove(sp)
+            st.rerun()
+    opts = field_options(lst)
+    preferred = [f for f in fields if f in opts]
+    ordered = preferred + [f for f in opts if f not in preferred]
+    field = st.selectbox("Span field", ordered, key=f"{lid}:hsf:{d}")
+    choices = field_choices(lst, field)
+    with st.form(f"{lid}:hs_form:{d}", clear_on_submit=True, border=False):
+        if choices is None:
+            raw = st.text_area("Span (verbatim; empty only if the field is empty)", height=68)
+            value = raw.strip()
+        else:
+            value = st.selectbox("Value", choices, format_func=lambda v: v or "(empty)")
+        if st.form_submit_button("Add span"):
+            sp = Span(field=field, span=value)
+            err = validate_span(lst, sp)
+            if err:
+                st.error(err)
+            elif sp in spans:
+                st.warning("Already added.")
+            else:
+                spans.append(sp)
+                st.rerun()
 
 
 def render_unsure(lid: str, w: dict) -> None:
@@ -267,7 +339,163 @@ def _outcomes(w: dict) -> list[SeedOutcome]:
     return [SeedOutcome(**o) for o in w["outcomes"].values() if o.get("action")]
 
 
+def _seed_decision(lid: str, d: str, w: dict) -> None:
+    o = w["outcomes"].setdefault(d, {"defect_id": d, "action": None})
+    opts = list(ACTIONS)
+    action = st.radio(
+        "Seed decision",
+        opts,
+        index=opts.index(o["action"]) if o.get("action") in opts else None,
+        format_func=ACTIONS.get,
+        horizontal=True,
+        key=f"{lid}:act:{d}",
+    )
+    o["action"] = action
+    if action == "retype":
+        others = [x for x in DEFECT_IDS if x != d]
+        cur = o.get("new_defect_id")
+        o["new_defect_id"] = st.selectbox(
+            "Change to",
+            others,
+            index=others.index(cur) if cur in others else 0,
+            format_func=_dname,
+            key=f"{lid}:new:{d}",
+        )
+    else:
+        o["new_defect_id"] = None
+    if action in ("reject", "retype"):
+        o["reason"] = st.text_input(
+            "Reason" + (" (required)" if action == "reject" else " (optional)"),
+            value=o.get("reason", ""),
+            key=f"{lid}:why:{d}",
+        )
+    else:
+        o["reason"] = ""
+
+
+def _drops(w: dict) -> list[DropReason]:
+    return [DropReason(**v) for v in w["drops"].values()]
+
+
+def render_reconcile_checklist(s, lid: str, lst: Listing, w: dict) -> None:
+    seeds = SEEDS.get(lid, [])
+    by_seed = {x.defect_id: x for x in seeds}
+    st.subheader("Seeds vs your checklist")
+    if not seeds:
+        st.info("No seeded defects for this listing.")
+    shown = [d for d in DEFECT_IDS if d in by_seed or w["checklist"][d]["answer"] != "no"]
+    for d in shown:
+        seed, a = by_seed.get(d), w["checklist"][d]
+        with st.container(border=True):
+            st.markdown(f"**{_dname(d)}**")
+            c1, c2 = st.columns(2)
+            with c1:
+                st.caption("Seed")
+                if seed is None:
+                    st.markdown("—")
+                for sp in seed.spans if seed else []:
+                    st.markdown(_span_line(sp))
+            with c2:
+                st.caption("Your blind answer")
+                st.markdown(_answer_line(a))
+            if a["answer"] == "yes":
+                drop = st.checkbox(f"Drop my {d} Yes", value=d in w["drops"], key=f"{lid}:drop:{d}")
+                if drop:
+                    dr = w["drops"].setdefault(d, {"defect_id": d, "reason": None, "note": ""})
+                    codes = list(DROP_REASONS)
+                    dr["reason"] = st.radio(
+                        "Why drop it?",
+                        codes,
+                        index=codes.index(dr["reason"]) if dr["reason"] in codes else None,
+                        format_func=DROP_REASONS.get,
+                        key=f"{lid}:dropwhy:{d}",
+                    )
+                    if dr["reason"] == "other":
+                        dr["note"] = st.text_input(
+                            "Other: describe", value=dr["note"], key=f"{lid}:dropnote:{d}"
+                        ).strip()
+                    else:
+                        dr["note"] = ""
+                else:
+                    w["drops"].pop(d, None)
+            if seed is not None:
+                _seed_decision(lid, d, w)
+            if a["answer"] == "yes" and d not in w["drops"]:
+                needs = seed is None or w["outcomes"].get(d, {}).get("action") != "confirm"
+                st.caption(
+                    "Spans for your label (required: no confirmed seed)"
+                    if needs
+                    else "Extra spans (optional: the seed's spans are used)"
+                )
+                spans = w["human_spans"].setdefault(d, [])
+                _span_adder(lid, lst, d, spans, a["fields"])
+
+    st.subheader("Result")
+    outcomes = _outcomes(w)
+    if any(dr.get("reason") is None for dr in w["drops"].values()):
+        st.error("Pick a reason for every dropped Yes.")
+        return
+    try:
+        args = (lid, _answers(w), seeds, outcomes, _drops(w), w["human_spans"])
+        full, _ = reconcile_checklist(*args)
+        final, rejected = reconcile_checklist(*args, w["removed"])
+    except ReconcileError as e:
+        st.error(str(e))
+        return
+    _render_result(lid, w, full, rejected)
+    if st.button("Save & next", type="primary", key=f"{lid}:save"):
+        now = time.monotonic()
+        rec = build_record(
+            lid,
+            blind=[],
+            unsure=[],
+            seeds=seeds,
+            outcomes=outcomes,
+            dropped_blind=(),
+            removed_spans=w["removed"],
+            blind_seconds=w["timers"]["blind"].elapsed(now),
+            reconcile_seconds=w["timers"]["reconcile"].elapsed(now),
+            saved_at=datetime.now(UTC).isoformat(timespec="seconds"),
+            previous=w["prev"],
+            blind_mode="checklist",
+            checklist=_answers(w),
+            drop_reasons=_drops(w),
+            human_spans=w["human_spans"],
+        )
+        _save(s, lid, rec)
+
+
+def _render_result(lid: str, w: dict, full: list, rejected: list) -> None:
+    if not full:
+        st.success("Clean: no gold labels for this listing.")
+    for g in full:
+        st.markdown(f"**{_dname(g.defect_id)}** · `{g.label_source}`")
+        for j, sp in enumerate(g.spans):
+            keep = st.checkbox(
+                _span_line(sp),
+                value=(g.defect_id, sp) not in w["removed"],
+                key=f"{lid}:keep:{g.defect_id}:{j}",
+            )
+            key = (g.defect_id, sp)
+            if not keep and key not in w["removed"]:
+                w["removed"].append(key)
+                st.rerun()
+            if keep and key in w["removed"]:
+                w["removed"].remove(key)
+                st.rerun()
+    for r in rejected:
+        st.markdown(f"Rejected seed **{r.defect_id}**: {r.reason}")
+
+
+def _save(s, lid: str, rec: LogRecord) -> None:
+    s.records = save_record(LABELS_DIR, rec)
+    del s.work[lid]
+    _go(s.idx + 1)
+    st.rerun()
+
+
 def render_reconcile(s, lid: str, lst: Listing, w: dict) -> None:
+    """Legacy free-mode reconcile (re-edits of records saved before the checklist)."""
     seeds = SEEDS.get(lid, [])
     st.subheader("Seeds vs your labels")
     pairs = match_seeds(w["blind"], seeds)
@@ -296,37 +524,7 @@ def render_reconcile(s, lid: str, lst: Listing, w: dict) -> None:
                     )
                     (w["dropped"].add if drop else w["dropped"].discard)(d)
             if seed is not None:
-                o = w["outcomes"].setdefault(d, {"defect_id": d, "action": None})
-                opts = list(ACTIONS)
-                action = st.radio(
-                    "Seed decision",
-                    opts,
-                    index=opts.index(o["action"]) if o.get("action") in opts else None,
-                    format_func=ACTIONS.get,
-                    horizontal=True,
-                    key=f"{lid}:act:{d}",
-                )
-                o["action"] = action
-                if action == "retype":
-                    others = [x for x in DEFECT_IDS if x != d]
-                    cur = o.get("new_defect_id")
-                    o["new_defect_id"] = st.selectbox(
-                        "Change to",
-                        others,
-                        index=others.index(cur) if cur in others else 0,
-                        format_func=_dname,
-                        key=f"{lid}:new:{d}",
-                    )
-                else:
-                    o["new_defect_id"] = None
-                if action in ("reject", "retype"):
-                    o["reason"] = st.text_input(
-                        "Reason" + (" (required)" if action == "reject" else " (optional)"),
-                        value=o.get("reason", ""),
-                        key=f"{lid}:why:{d}",
-                    )
-                else:
-                    o["reason"] = ""
+                _seed_decision(lid, d, w)
     render_unsure(lid, w)
 
     st.subheader("Result")
@@ -337,25 +535,7 @@ def render_reconcile(s, lid: str, lst: Listing, w: dict) -> None:
     except ReconcileError as e:
         st.error(str(e))
         return
-    if not full:
-        st.success("Clean: no gold labels for this listing.")
-    for g in full:
-        st.markdown(f"**{_dname(g.defect_id)}** · `{g.label_source}`")
-        for j, sp in enumerate(g.spans):
-            keep = st.checkbox(
-                _span_line(sp),
-                value=(g.defect_id, sp) not in w["removed"],
-                key=f"{lid}:keep:{g.defect_id}:{j}",
-            )
-            key = (g.defect_id, sp)
-            if not keep and key not in w["removed"]:
-                w["removed"].append(key)
-                st.rerun()
-            if keep and key in w["removed"]:
-                w["removed"].remove(key)
-                st.rerun()
-    for r in rejected:
-        st.markdown(f"Rejected seed **{r.defect_id}**: {r.reason}")
+    _render_result(lid, w, full, rejected)
     if st.button("Save & next", type="primary", key=f"{lid}:save"):
         now = time.monotonic()
         rec = build_record(
@@ -371,10 +551,7 @@ def render_reconcile(s, lid: str, lst: Listing, w: dict) -> None:
             saved_at=datetime.now(UTC).isoformat(timespec="seconds"),
             previous=w["prev"],
         )
-        s.records = save_record(LABELS_DIR, rec)
-        del s.work[lid]
-        _go(s.idx + 1)
-        st.rerun()
+        _save(s, lid, rec)
 
 
 def sidebar(s) -> None:
@@ -435,18 +612,26 @@ def main() -> None:
     with left:
         render_listing(lst)
     with right:
-        render_blind(lid, lst, w)
+        if w["mode"] == "free":  # legacy record: locked blind view + free-mode reconcile
+            render_blind_free(w)
+            render_reconcile(s, lid, lst, w)
+            return
+        render_checklist(lid, lst, w)
         if not w["revealed"]:
-            render_unsure(lid, w)
-            label = "Reveal seeds" if w["blind"] else "Clean: reveal seeds"
-            if st.button(label, type="primary", key=f"{lid}:reveal"):
+            problems = checklist_problems(_answers(w))
+            st.caption(f"Answered {8 - sum('not answered' in p for p in problems)}/8")
+            for p in problems:
+                st.caption(f"• {p}")
+            if st.button(
+                "Reveal seeds", type="primary", key=f"{lid}:reveal", disabled=bool(problems)
+            ):
                 t = time.monotonic()
                 w["timers"]["blind"].pause(t)
                 w["revealed"] = True
                 w["timers"]["reconcile"].start(t)
                 st.rerun()
         else:
-            render_reconcile(s, lid, lst, w)
+            render_reconcile_checklist(s, lid, lst, w)
 
 
 main()

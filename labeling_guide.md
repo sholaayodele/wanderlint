@@ -283,15 +283,26 @@ unsure for the same reason, stop and fix the taxonomy before you label more.
 | `added_by_human` | A defect you found that wasn't seeded. |
 
 - The **frozen `gold.jsonl`** contains only `confirmed` and `added_by_human`.
-- **Blind-then-reveal** (`make label`, i.e. `scripts/label_app.py`): label each listing
-  with the seeds hidden first, then press *Reveal seeds* and decide each seed (Confirm /
-  Reject with a reason / Change type). Seeds are matched to your labels by defect type.
-  Your blind labels without a seed become `added_by_human`; any you drop after the reveal
-  are counted (blind precision). Seeing the seeds first anchors you on them. Hard-case and
-  trap info from generation is never shown. Listings come in a fixed random order (seed 7);
-  you can resume and go back. Going back to a saved listing keeps your original blind pass
-  and lets you change only the reconcile decisions. Use *Pause* for breaks: each phase is
-  capped at 10 minutes of active time, and capped records are left out of the time medians.
+- **Blind-then-reveal** (`make label`, i.e. `scripts/label_app.py`): seeing the seeds first
+  anchors you on them, so each listing starts blind.
+  1. **Blind checklist:** for every type D1–D8 (cheat-sheet order, one-line test shown) answer
+     Yes / No / Unsure. Yes: pick the field(s), no span needed yet. Unsure: one line why.
+     *Reveal seeds* stays disabled until all 8 are answered.
+  2. **Reconcile:** decide each seed (Confirm / Reject with a reason / Change type). A blind Yes
+     with no seed is kept as `added_by_human` unless you drop it, and dropping needs a reason:
+     "guide rule says it's not this defect", "misread the listing", or "other: …". Enter
+     verbatim spans for every kept human-added label here. A Yes that matches a confirmed seed
+     uses the seed's spans. An open Unsure (its type didn't end up in gold) goes to
+     `unsure.jsonl`. Seeds are not complete: keep a Yes you still believe in.
+  3. Blind recall/precision are computed from the checklist answers per (listing, defect
+     type). Records made this way have `blind_mode: "checklist"`; the 21 listings labeled
+     before the checklist (free-form blind labels) keep their gold but are left out of the
+     checklist baseline. The first 10 labeled are calibration.
+  Hard-case and trap info from generation is never shown. Listings come in a fixed random
+  order (seed 7); you can resume and go back. Going back to a saved listing keeps your blind
+  pass locked and lets you change only the reconcile decisions. Use *Pause* for breaks: each
+  phase is capped at 10 minutes of active time, and capped records are left out of the time
+  medians.
 - **Files:** the app writes `gold.jsonl`, `rejected_seeds.jsonl`, `unsure.jsonl` and
   `labeling_log.jsonl` (blind labels, seeds, outcome per seed, seconds per phase; the
   latest save per listing wins). `make label-stats` reports seed rejection rate,
