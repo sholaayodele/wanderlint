@@ -15,7 +15,9 @@ from wanderlint.labeling import (
     PhaseTimer,
     ReconcileError,
     SeedOutcome,
+    baseline,
     build_record,
+    calibration_ids,
     cap_seconds,
     cheat_sheet,
     compute_stats,
@@ -379,3 +381,53 @@ def test_labeling_code_never_reads_meta() -> None:
         src = (ROOT / path).read_text(encoding="utf-8")
         assert "output_meta" not in src and 'generated_meta.jsonl"' not in src
         assert "hard_case" not in src and "traps" not in src
+
+
+# --- Calibration ------------------------------------------------------------------
+
+
+def _rec(lid: str, *, found: bool, secs: float) -> object:
+    s = [GoldLabel(listing_id=lid, defect_id="D5", spans=[sp("d", "x")], label_source="seeded")]
+    return build_record(
+        lid,
+        blind=[blind("D5", sp("d", "x"))] if found else [],
+        unsure=[],
+        seeds=s,
+        outcomes=[SeedOutcome(defect_id="D5", action="confirm")],
+        dropped_blind=[],
+        removed_spans=[],
+        blind_seconds=secs,
+        reconcile_seconds=0.0,
+        saved_at="t",
+    )
+
+
+def test_calibration_is_first_n_saved_and_stable_under_reedits(tmp_path: Path) -> None:
+    ids = [f"gen-{i:04d}" for i in (5, 3, 9, 1)]
+    for lid in ids:
+        save_record(tmp_path, _rec(lid, found=False, secs=10.0))
+    first = _rec(ids[0], found=False, secs=10.0)
+    save_record(tmp_path, first)  # a re-edit of a calibration listing appends again
+    assert calibration_ids(tmp_path, n=2) == ids[:2]  # first-save order, not id order
+    assert calibration_ids(tmp_path, n=10) == ids  # fewer than n labeled: all are calibration
+    assert calibration_ids(tmp_path / "missing") == []
+
+
+def test_baseline_with_and_without_calibration(tmp_path: Path) -> None:
+    # calibration: missed the seed, slow; after: found it, faster
+    recs = [_rec("c1", found=False, secs=300.0), _rec("c2", found=False, secs=500.0)]
+    recs += [_rec("a1", found=True, secs=60.0), _rec("a2", found=True, secs=80.0)]
+    for r in recs:
+        save_record(tmp_path, r)
+    calib = calibration_ids(tmp_path, n=2)
+    assert calib == ["c1", "c2"]
+    records = latest_records(tmp_path)
+    b_all = baseline(compute_stats(records.values()))
+    b_excl = baseline(compute_stats(r for lid, r in records.items() if lid not in calib))
+    assert b_all["blind_recall"] == 0.5 and b_excl["blind_recall"] == 1.0
+    assert b_all["median_seconds_per_listing"] == 190.0
+    assert b_excl["median_seconds_per_listing"] == 70.0
+    assert b_excl["listings_labeled"] == 2
+    assert b_excl["per_type"]["D5"]["blind_precision"] == 1.0
+    # calibration labels stay in gold
+    assert {g["listing_id"] for g in _rows(tmp_path / GOLD)} == {"c1", "c2", "a1", "a2"}

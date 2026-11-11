@@ -30,6 +30,7 @@ from wanderlint.models import DefectId, GoldLabel, Listing, RejectedSeed, Span, 
 DEFECT_IDS: list[str] = ["D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8"]
 ORDER_SEED = 7
 PHASE_CAP_S = 600.0  # 10 minutes of active time per phase
+CALIBRATION_N = 10  # the first N listings labeled are calibration (kept in gold, not baseline)
 
 GOLD = "gold.jsonl"
 REJECTED = "rejected_seeds.jsonl"
@@ -303,6 +304,39 @@ def read_jsonl(path: Path) -> list[dict]:
 def latest_records(labels_dir: Path) -> dict[str, LogRecord]:
     """Latest log record per listing (later lines win)."""
     return {r["listing_id"]: LogRecord(**r) for r in read_jsonl(labels_dir / LOG)}
+
+
+def calibration_ids(labels_dir: Path, n: int = CALIBRATION_N) -> list[str]:
+    """The first `n` listings ever saved, in first-save order (re-edits don't change this).
+
+    Calibration listings stay in gold, but are excluded from the blind human baseline:
+    the annotator was still learning the tool and the taxonomy on them.
+    """
+    seen: list[str] = []
+    for row in read_jsonl(labels_dir / LOG):
+        if row["listing_id"] not in seen:
+            seen.append(row["listing_id"])
+            if len(seen) == n:
+                break
+    return seen
+
+
+def baseline(stats: dict) -> dict:
+    """The blind human baseline part of `compute_stats` output."""
+    keys = (
+        "listings_labeled",
+        "blind_recall",
+        "blind_precision",
+        "median_seconds_per_listing",
+        "median_blind_seconds",
+        "median_reconcile_seconds",
+        "time_capped_records",
+    )
+    per_type = {
+        d: {k: t[k] for k in ("confirmed_seeds", "blind_recall", "blind_labels", "blind_precision")}
+        for d, t in stats["per_type"].items()
+    }
+    return {**{k: stats[k] for k in keys}, "per_type": per_type}
 
 
 def _write_atomic(path: Path, rows: Iterable[BaseModel]) -> None:
