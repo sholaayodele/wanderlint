@@ -610,3 +610,35 @@ def test_stats_from_checklist_answers_and_checklist_baseline() -> None:
     mixed = [record(), rec]
     b_check = baseline(compute_stats(r for r in mixed if r.blind_mode == "checklist"))
     assert b_check["listings_labeled"] == 1 and b_check["blind_recall"] == 0.5
+
+
+def test_blind_match_needs_same_type_and_a_shared_field() -> None:
+    # gen-0096: Yes on D2 in short_description; the confirmed D2 seed is in description +
+    # an attribute (a different instance), so the claim was dropped as "misread".
+    seeds = [seed("D2", ACCESS, ATTR), seed("D7", sp("tags", "Private"))]
+    outcomes = [
+        SeedOutcome(defect_id="D2", action="confirm"),
+        SeedOutcome(defect_id="D7", action="confirm"),
+    ]
+
+    def rec(d2_fields: list[str], dropped: list[DropReason]):
+        return checklist_record(
+            seeds=seeds,
+            outcomes=outcomes,
+            checklist=answers(D2=("yes", d2_fields), D7=("yes", ["tags"])),
+            drop_reasons=dropped,
+            human_spans={},
+        )
+
+    miss = rec(["short_description"], [DropReason(defect_id="D2", reason="misread")])
+    t = compute_stats([miss])["per_type"]
+    # same type, no shared field: neither a recall hit nor a precise claim
+    assert t["D2"]["blind_recall"] == 0.0 and t["D2"]["blind_precision"] == 0.0
+    assert t["D2"]["blind_dropped_after_reveal"] == 1
+    assert t["D2"]["drop_reasons"]["misread"] == 1
+    # same type and a shared field (tags): counts on both sides
+    assert t["D7"]["blind_recall"] == 1.0 and t["D7"]["blind_precision"] == 1.0
+
+    hit = rec(["short_description", "description"], [])  # one shared field is enough
+    t = compute_stats([hit])["per_type"]
+    assert t["D2"]["blind_recall"] == 1.0 and t["D2"]["blind_precision"] == 1.0

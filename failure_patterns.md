@@ -158,3 +158,14 @@ fixes, and taxonomy/prompt version changes.
      prompt_version and taxonomy_version.
   Re-run reuses the response cache: only listings whose prompts or accepted edits change make
   new calls; listing IDs come from the deterministic plan and stay stable.
+- 2026-11-15 — labeling stats decision: field-aware blind matching (human baseline only; gold,
+  taxonomy and the checker's scoring unit are unchanged). A blind claim (checklist Yes, or a
+  free-mode blind label) matches a gold label only if it has the same defect type AND names at
+  least one field that label's spans touch. One definition for both sides: recall = confirmed
+  seeds matched by a claim / confirmed seeds; precision = claims matching a final gold label /
+  all claims. Trigger: gen-0096, a Yes on D2 in `short_description` while the confirmed D2 seed
+  was in `description` + `exclusions` (a different instance, dropped as "misread"). Type-only
+  matching counted it as a recall hit but a precision miss. Effect at 30/150 labeled: checklist
+  recall 37.5% → 25.0% (D2 50% → 0%); all listings 10.7% → 7.1%, excluding calibration
+  15.0% → 10.0%; precision unchanged on all three rows.
+  Test: `test_blind_match_needs_same_type_and_a_shared_field`.

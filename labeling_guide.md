@@ -295,7 +295,8 @@ unsure for the same reason, stop and fix the taxonomy before you label more.
      uses the seed's spans. An open Unsure (its type didn't end up in gold) goes to
      `unsure.jsonl`. Seeds are not complete: keep a Yes you still believe in.
   3. Blind recall/precision are computed from the checklist answers per (listing, defect
-     type). Records made this way have `blind_mode: "checklist"`; the 21 listings labeled
+     type). A Yes matches a gold label only if it is the same type AND names at least one
+     field that label's spans touch (same rule for recall and precision). Records made this way have `blind_mode: "checklist"`; the 21 listings labeled
      before the checklist (free-form blind labels) keep their gold but are left out of the
      checklist baseline. The first 10 labeled are calibration.
   Hard-case and trap info from generation is never shown. Listings come in a fixed random

@@ -4,8 +4,10 @@ Usage: uv run python scripts/labeling_stats.py [--json out.json]
 Reads data/labels/labeling_log.jsonl (latest record per listing). No API calls.
 The blind human baseline is reported for all listings, without the calibration listings (the
 first CALIBRATION_N labeled; their labels stay in gold) and for checklist-mode listings only
-(blind_mode="checklist"). Drop reasons: rule = guide rule says it's not this defect,
-misread = misread the listing, other, ? = not recorded (free-mode records).
+(blind_mode="checklist"). A blind claim matches a gold label only if it has the same defect
+type and names at least one field the label's spans touch (recall and precision).
+Drop reasons: rule = guide rule says it's not this defect, misread = misread the listing,
+other, ? = not recorded (free-mode records).
 """
 
 from __future__ import annotations
@@ -70,8 +72,8 @@ def main(
         f"excluded from baseline below): {len(calib)}"
     )
     typer.echo("")
-    typer.echo("Blind human baseline (recall vs confirmed seeds; precision = blind labels kept in")
-    typer.echo("gold; time medians exclude time-capped records)")
+    typer.echo("Blind human baseline (match = same type + a shared field; recall vs confirmed")
+    typer.echo("seeds; precision vs final gold; time medians exclude time-capped records)")
     typer.echo(
         f"{'':22}  {'listings':>8}  {'recall':>6}  {'precision':>9}  {'median s':>10}  "
         f"{'blind s':>7}  {'reconc. s':>9}  {'capped':>6}"

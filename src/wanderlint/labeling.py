@@ -338,6 +338,20 @@ def blind_claims(record: LogRecord) -> set[str]:
     return set(blind_by_type(record.blind_labels))
 
 
+def claim_fields(record: LogRecord) -> dict[str, set[str]]:
+    """Blind claims with the fields they name: type → fields (checklist Yes fields, or the
+    fields of free-mode blind spans)."""
+    if record.blind_mode == "checklist":
+        return {a.defect_id: set(a.fields) for a in record.checklist if a.answer == "yes"}
+    return {d: {s.field for s in spans} for d, spans in blind_by_type(record.blind_labels).items()}
+
+
+def claim_matches(claims: dict[str, set[str]], label: GoldLabel) -> bool:
+    """One definition of a blind match, used for both recall and precision: same defect type
+    AND at least one field in common with the label's spans (failure_patterns.md, 2026-11-15)."""
+    return bool(claims.get(label.defect_id, set()) & {s.field for s in label.spans})
+
+
 # --- Timing -------------------------------------------------------------------
 
 
@@ -587,11 +601,14 @@ def compute_stats(records: Iterable[LogRecord]) -> dict:
         for d in r.dropped_blind:
             drop_why[d][reasons.get(d, "unrecorded")] += 1
         final_types = {g.defect_id for g in r.final_labels}
+        claims = claim_fields(r)
+        seed_by_type = {s.defect_id: s for s in r.seeds}
         for o in r.seed_outcomes:
             seeds[o.defect_id] += 1
             if o.action == "confirm":
                 confirmed[o.defect_id] += 1
-                blind_hit[o.defect_id] += o.defect_id in blind
+                seed = seed_by_type.get(o.defect_id)
+                blind_hit[o.defect_id] += seed is not None and claim_matches(claims, seed)
             else:
                 rejected[o.defect_id] += 1
                 retyped[o.defect_id] += o.action == "retype"
@@ -599,9 +616,10 @@ def compute_stats(records: Iterable[LogRecord]) -> dict:
             human_added[g.defect_id] += g.label_source == "added_by_human"
         for d in blind:
             blind_all[d] += 1
-            kept = d in final_types and d not in r.dropped_blind
-            blind_kept[d] += kept
-            blind_dropped[d] += not kept
+            blind_kept[d] += any(
+                g.defect_id == d and claim_matches(claims, g) for g in r.final_labels
+            )
+            blind_dropped[d] += d not in final_types or d in r.dropped_blind
     per_type = {
         d: {
             "seeds": seeds[d],
