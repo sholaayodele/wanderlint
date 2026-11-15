@@ -1,6 +1,9 @@
 {"listing_id":"gen-0001","defect_id":"D2","spans":[{"field":"description","span":"The car is wheelchair accessible and air-conditioned"},{"field":"attributes.wheelchair_accessible","span":"false"}],"label_source":"confirmed"}
 {"listing_id":"gen-0028","defect_id":"D2","spans":[{"field":"description","span":"relaxed 5-hour evening tour"},{"field":"duration","span":"3 hours"}],"label_source":"confirmed"}
 {"listing_id":"gen-0028","defect_id":"D7","spans":[{"field":"tags","span":"Wine tasting"}],"label_source":"confirmed"}
+{"listing_id":"gen-0042","defect_id":"D2","spans":[{"field":"description","span":"A herbal tea is served after the class."},{"field":"exclusions","span":"Herbal tea after the class"}],"label_source":"confirmed"}
+{"listing_id":"gen-0042","defect_id":"D3","spans":[{"field":"short_description","span":"The official yoga class of the Englischer Garten"}],"label_source":"confirmed"}
+{"listing_id":"gen-0042","defect_id":"D5","spans":[{"field":"description","span":"1.200,5 metres"}],"label_source":"confirmed"}
 {"listing_id":"gen-0061","defect_id":"D8","spans":[{"field":"short_description","span":"Entdecken Sie an einem Abend die lokale Craft-Beer-Szene Venedigs und probieren Sie Biere aus kleinen italienischen Brauereien."}],"label_source":"confirmed"}
 {"listing_id":"gen-0065","defect_id":"D4","spans":[{"field":"description","span":"Abholung von Ihrem Hotel inklusive"}],"label_source":"confirmed"}
 {"listing_id":"gen-0065","defect_id":"D6","spans":[{"field":"meeting_point","span":"www.tokyo-erleben.de"}],"label_source":"confirmed"}
@@ -9,9 +12,13 @@
 {"listing_id":"gen-0067","defect_id":"D7","spans":[{"field":"tags","span":"Familie"}],"label_source":"confirmed"}
 {"listing_id":"gen-0076","defect_id":"D5","spans":[{"field":"meeting_point","span":"19 Uhr"}],"label_source":"confirmed"}
 {"listing_id":"gen-0076","defect_id":"D7","spans":[{"field":"tags","span":"Kayaking"}],"label_source":"confirmed"}
+{"listing_id":"gen-0079","defect_id":"D3","spans":[{"field":"short_description","span":"This is the official Stockholm cooking class."}],"label_source":"confirmed"}
+{"listing_id":"gen-0079","defect_id":"D7","spans":[{"field":"tags","span":"Snorkelling"}],"label_source":"confirmed"}
 {"listing_id":"gen-0090","defect_id":"D2","spans":[{"field":"attributes.max_group_size","span":"8"}],"label_source":"added_by_human"}
 {"listing_id":"gen-0095","defect_id":"D5","spans":[{"field":"description","span":"2.500,5 metres"}],"label_source":"confirmed"}
 {"listing_id":"gen-0095","defect_id":"D7","spans":[{"field":"category","span":"Adventure Sports"}],"label_source":"confirmed"}
+{"listing_id":"gen-0096","defect_id":"D2","spans":[{"field":"description","span":"Your admission tickets to the museum are included."},{"field":"exclusions","span":"Museum entrance ticket"}],"label_source":"confirmed"}
+{"listing_id":"gen-0096","defect_id":"D7","spans":[{"field":"tags","span":"Kids"}],"label_source":"confirmed"}
 {"listing_id":"gen-0098","defect_id":"D2","spans":[{"field":"description","span":"Der deutschsprachige Guide ist gegen Aufpreis buchbar."},{"field":"inclusions","span":"Deutschsprachiger Guide"}],"label_source":"confirmed"}
 {"listing_id":"gen-0101","defect_id":"D6","spans":[{"field":"short_description","span":"only €49"}],"label_source":"confirmed"}
 {"listing_id":"gen-0104","defect_id":"D3","spans":[{"field":"description","span":"skip-the-line entry"}],"label_source":"confirmed"}
@@ -19,3 +26,4 @@
 {"listing_id":"gen-0107","defect_id":"D5","spans":[{"field":"description","span":"Das entspannte Tempo lässt Zeit für jeden Bissen und jede Nummer."}],"label_source":"confirmed"}
 {"listing_id":"gen-0107","defect_id":"D7","spans":[{"field":"tags","span":"Kids"}],"label_source":"confirmed"}
 {"listing_id":"gen-0107","defect_id":"D8","spans":[{"field":"short_description","span":"Enjoy a live cabaret-style performance while sampling a multi-course menu of modern Danish flavours in an intimate city-centre venue."}],"label_source":"confirmed"}
+{"listing_id":"gen-0111","defect_id":"D7","spans":[{"field":"category","span":"Classes & Workshops"}],"label_source":"confirmed"}
