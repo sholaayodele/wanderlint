@@ -1,4 +1,4 @@
-.PHONY: install install-hooks test lint format eval-gate label label-stats save-labels
+.PHONY: install install-hooks test lint format eval-gate split label label-stats save-labels
 
 install:
 	uv sync --all-groups
@@ -22,6 +22,10 @@ format:
 eval-gate:
 	@echo "eval-gate: not implemented yet (M3)." >&2
 	@exit 1
+
+# Freezes the dev/test split once (data/splits.json); refuses to overwrite.
+split:
+	uv run python scripts/make_split.py
 
 label:
 	uv run --group label streamlit run scripts/label_app.py --server.address localhost

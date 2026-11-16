@@ -188,6 +188,7 @@ wanderlint/
     datagen_listing_v1.md     # synthetic listing generation (clean)
     datagen_inject_v1.md      # synthetic defect injection
   data/
+    splits.json               # frozen dev/test ids (seed 11, stratified; make split)
     listings/                 # dev.jsonl, test.jsonl, raw/ (generated.jsonl, generated_meta.jsonl)
     listings/regression/      # per-failure-pattern listings
     labels/                   # seeded, gold, relabel_kappa, unsure, rejected_seeds, labeling_log (.jsonl)
@@ -200,12 +201,14 @@ wanderlint/
     eval.py
     cost.py                   # token + € accounting, hard cost cap
     llm.py                    # cached, cost-tracked structured-output API calls
-    labeling.py               # labeling logic: order, span validation, reconcile, save, stats
+    labeling.py               # labeling logic: modes, order, span validation, reconcile, save, stats
+    splits.py                 # stratified dev/test split (frozen in data/splits.json)
     datagen/                  # synthetic data: vocab, plan (seeded specs), checks, inject, run, audit
   scripts/
     generate_listings.py
     audit_generated.py        # re-checks seeded data (claims, D4 overlap, seams, spans)
-    label_app.py              # Streamlit labeling tool (blind-then-reveal; logic in labeling.py)
+    make_split.py             # freeze the dev/test split (make split; refuses to overwrite)
+    label_app.py              # Streamlit labeling tool (test: blind checklist; dev: verify)
     labeling_stats.py         # seed rejection, human-added, blind recall/precision, time
     save_labels.sh            # commit + push data/labels/*.jsonl (make save-labels)
     kappa.py
@@ -293,6 +296,7 @@ make install-hooks                                   # once per clone: pre-commi
 uv run python scripts/generate_listings.py --n 10 --seed 42 --dry-run   # plan + estimate, no API
 uv run python scripts/generate_listings.py --n 150 --seed 42 --yes      # > 20 listings needs --yes
 uv run python scripts/audit_generated.py                                 # deterministic audit of generated data
+uv run python scripts/make_split.py [--dry-run]                   # = make split; freezes data/splits.json once
 uv run --group label streamlit run scripts/label_app.py --server.address localhost   # = make label
 uv run python scripts/labeling_stats.py                            # = make label-stats
 make save-labels                                                   # commit + push data/labels/*.jsonl

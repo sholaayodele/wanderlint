@@ -1,9 +1,13 @@
-"""Blind-then-reveal labeling: pure logic behind scripts/label_app.py and labeling_stats.py.
+"""Labeling logic behind scripts/label_app.py and labeling_stats.py.
 
-Flow per listing: a blind pass (seeds hidden) → reveal seeds → reconcile each seed
-(confirm / reject / retype) → save. `labeling_log.jsonl` is the source of truth (append-only,
-latest record per listing wins); gold, rejected_seeds and unsure are rebuilt from it on every
-save, so re-editing a listing never duplicates rows. No API calls; nothing here reads
+Modes (`blind_mode`, failure_patterns.md 2026-11-16): test listings are labeled blind with the
+checklist (seeds hidden → reveal → reconcile each seed); dev listings are verified with the seeds
+visible ("verify": confirm / reject / retype each seed, then add anything else). "free" is the
+legacy free-form blind pass; free-mode test listings get one re-check (`rechecked`).
+Order: test re-checks, then the rest of test, then dev. `labeling_log.jsonl` is the source of
+truth (append-only, latest record per listing wins); gold, rejected_seeds and unsure are
+rebuilt from it on every save, so re-editing a listing never duplicates rows. No API calls;
+nothing here reads
 generated_meta.jsonl (hard-case / trap info would leak the answer).
 """
 
@@ -38,7 +42,7 @@ UNSURE = "unsure.jsonl"
 LOG = "labeling_log.jsonl"
 
 SeedAction = Literal["confirm", "reject", "retype"]
-BlindMode = Literal["free", "checklist"]
+BlindMode = Literal["free", "checklist", "verify"]
 Answer = Literal["yes", "no", "unsure"]
 DropCode = Literal["guide_rule", "misread", "other"]
 DROP_REASONS: dict[str, str] = {
@@ -84,6 +88,7 @@ class DropReason(_Strict):
 class LogRecord(_Strict):
     listing_id: str
     # "free": legacy free-form blind labels with spans; "checklist": Yes/No/Unsure per type
+    # (test); "verify": seeds shown up front, no blind pass (dev)
     blind_mode: BlindMode = "free"
     checklist: list[ChecklistAnswer] = Field(default_factory=list)
     drop_reasons: list[DropReason] = Field(default_factory=list)
@@ -92,12 +97,16 @@ class LogRecord(_Strict):
     seeds: list[GoldLabel] = Field(default_factory=list)
     seed_outcomes: list[SeedOutcome] = Field(default_factory=list)
     dropped_blind: list[DefectId] = Field(default_factory=list)  # blind types removed at reveal
+    # labels added with the seeds visible (verify mode's "anything else?", re-checks)
+    added_labels: list[BlindLabel] = Field(default_factory=list)
     final_labels: list[GoldLabel] = Field(default_factory=list)
     rejected: list[RejectedSeed] = Field(default_factory=list)
     blind_seconds: float = 0.0
     reconcile_seconds: float = 0.0
     time_capped: bool = False
     edited: bool = False
+    rechecked: bool = False  # free-mode test listing re-reviewed in reconcile
+    rechecked_at: str | None = None
     saved_at: str
 
 
@@ -113,6 +122,44 @@ def labeling_order(listing_ids: Iterable[str], seed: int = ORDER_SEED) -> list[s
     ids = sorted(listing_ids)
     random.Random(seed).shuffle(ids)
     return ids
+
+
+def split_order(
+    listing_ids: Iterable[str],
+    split_of: dict[str, str],
+    first: Iterable[str] = (),
+    seed: int = ORDER_SEED,
+) -> list[str]:
+    """`first` (re-checks), then the other test listings, then dev; each in the seed-7 order."""
+    base = labeling_order(listing_ids, seed)
+    head = set(first)
+    return (
+        [i for i in base if i in head]
+        + [i for i in base if i not in head and split_of[i] == "test"]
+        + [i for i in base if i not in head and split_of[i] != "test"]
+    )
+
+
+def mode_for(listing_id: str, split_of: dict[str, str]) -> BlindMode:
+    """New work: checklist (blind) on test, verify (seeds visible) on dev."""
+    return "checklist" if split_of[listing_id] == "test" else "verify"
+
+
+def recheck_ids(records: dict[str, LogRecord], split_of: dict[str, str]) -> list[str]:
+    """Test listings labeled with the legacy free-form blind pass (sorted)."""
+    return sorted(
+        i for i, r in records.items() if split_of.get(i) == "test" and r.blind_mode == "free"
+    )
+
+
+def needs_recheck(records: dict[str, LogRecord], split_of: dict[str, str]) -> list[str]:
+    """Free-mode test listings not re-checked yet."""
+    return [i for i in recheck_ids(records, split_of) if not records[i].rechecked]
+
+
+def done_ids(records: dict[str, LogRecord], split_of: dict[str, str]) -> set[str]:
+    """Listings that need no more work: saved, and re-checked if they need it."""
+    return set(records) - set(needs_recheck(records, split_of))
 
 
 def resume_index(order: list[str], done: Iterable[str]) -> int:
@@ -193,17 +240,22 @@ def reconcile(
     outcomes: list[SeedOutcome],
     dropped_blind: Iterable[str] = (),
     removed_spans: Iterable[tuple[str, Span]] = (),
+    added: Iterable[BlindLabel] = (),
 ) -> tuple[list[GoldLabel], list[RejectedSeed]]:
-    """Final gold labels and rejected seeds for one listing.
+    """Final gold labels and rejected seeds for one listing (free and verify mode).
 
     confirm → `confirmed`, seed spans + the blind spans of that type not already there;
     reject  → rejected_seeds (reason required);
     retype  → seed rejected ("retyped to Dx"), Dx `added_by_human` (merged with a blind Dx);
     blind labels without a seed → `added_by_human`. Rejecting/retyping a seed while keeping a
     blind label of the same type is contradictory: drop the blind label or confirm the seed.
+    `added` = labels added with the seeds visible (verify's "anything else?", re-checks); they
+    are merged with the kept blind labels of the same type.
     """
     dropped = set(dropped_blind)
     claimed = {d: s for d, s in blind_by_type(blind).items() if d not in dropped}
+    for d, spans in blind_by_type(added).items():
+        claimed[d] = _merge(claimed.get(d, []), spans)
     return _reconcile_claims(listing_id, claimed, seeds, outcomes, removed_spans)
 
 
@@ -229,7 +281,7 @@ def _reconcile_claims(
             continue
         if d in kept_blind:
             raise ReconcileError(
-                f"Seed {d} is {o.action}ed but your blind {d} label is kept: drop it or confirm"
+                f"Seed {d} is {o.action}ed but your {d} label is kept: drop it or confirm"
             )
         if o.action == "reject":
             if not o.reason.strip():
@@ -404,12 +456,16 @@ def build_record(
     checklist: list[ChecklistAnswer] = (),
     drop_reasons: list[DropReason] = (),
     human_spans: dict[str, list[Span]] | None = None,
+    added_labels: list[BlindLabel] = (),
+    recheck: bool = False,
 ) -> LogRecord:
     """A log record for one save. Re-edits keep the original blind pass and add reconcile time.
 
     Free mode: `blind` labels with spans, `dropped_blind` types. Checklist mode: `checklist`
     answers, `drop_reasons` (one per dropped Yes), spans for kept Yes in `human_spans`; the
-    record's unsure entries are the checklist's open Unsure answers.
+    record's unsure entries are the checklist's open Unsure answers. Verify mode: no blind pass;
+    seed outcomes plus `added_labels`. `added_labels` also works in free mode (re-checks);
+    `recheck=True` marks a re-check (`rechecked`, `rechecked_at`), kept on later re-edits.
     """
     if previous is not None:
         blind = previous.blind_labels
@@ -419,7 +475,11 @@ def build_record(
         reconcile_seconds += previous.reconcile_seconds
     checklist = list(checklist)
     drop_reasons = list(drop_reasons) if blind_mode == "checklist" else []
-    if blind_mode == "checklist":
+    added = list(added_labels) if blind_mode != "checklist" else []
+    if blind_mode == "verify":
+        blind, checklist, unsure, dropped = [], [], [], []
+        final, rejected = reconcile(listing_id, [], seeds, outcomes, (), removed_spans, added)
+    elif blind_mode == "checklist":
         blind = []
         final, rejected = reconcile_checklist(
             listing_id, checklist, seeds, outcomes, drop_reasons, human_spans, removed_spans
@@ -429,7 +489,11 @@ def build_record(
     else:
         checklist = []
         dropped = sorted(set(dropped_blind) & set(blind_by_type(blind)))
-        final, rejected = reconcile(listing_id, blind, seeds, outcomes, dropped, removed_spans)
+        final, rejected = reconcile(
+            listing_id, blind, seeds, outcomes, dropped, removed_spans, added
+        )
+    rechecked = recheck or (previous is not None and previous.rechecked)
+    rechecked_at = saved_at if recheck else (previous.rechecked_at if previous else None)
     b, b_cap = cap_seconds(blind_seconds)
     r, r_cap = cap_seconds(reconcile_seconds)
     return LogRecord(
@@ -442,12 +506,15 @@ def build_record(
         seeds=seeds,
         seed_outcomes=outcomes,
         dropped_blind=dropped,
+        added_labels=added,
         final_labels=final,
         rejected=rejected,
         blind_seconds=round(b, 1),
         reconcile_seconds=round(r, 1),
         time_capped=b_cap or r_cap or (previous is not None and previous.time_capped),
         edited=previous is not None,
+        rechecked=rechecked,
+        rechecked_at=rechecked_at,
         saved_at=saved_at,
     )
 
@@ -498,6 +565,8 @@ def baseline(stats: dict) -> dict:
                 "blind_labels",
                 "blind_unsure",
                 "blind_precision",
+                "blind_dropped_after_reveal",
+                "drop_reasons",
             )
         }
         for d, t in stats["per_type"].items()
@@ -641,6 +710,8 @@ def compute_stats(records: Iterable[LogRecord]) -> dict:
     return {
         "listings_labeled": len(recs),
         "checklist_listings": sum(r.blind_mode == "checklist" for r in recs),
+        "verify_listings": sum(r.blind_mode == "verify" for r in recs),
+        "rechecked": sum(r.rechecked for r in recs),
         "seeds": sum(seeds.values()),
         "rejected": sum(rejected.values()),
         "retyped": sum(retyped.values()),
@@ -657,3 +728,20 @@ def compute_stats(records: Iterable[LogRecord]) -> dict:
         "median_reconcile_seconds": _median([r.reconcile_seconds for r in uncapped]),
         "per_type": per_type,
     }
+
+
+def split_progress(records: dict[str, LogRecord], split_of: dict[str, str]) -> dict[str, dict]:
+    """Per split: total, labeled, labeled per mode, re-checks done / needed (test only)."""
+    recheck = set(recheck_ids(records, split_of))
+    out = {}
+    for s in ("test", "dev"):
+        ids = [i for i, x in split_of.items() if x == s]
+        recs = [records[i] for i in ids if i in records]
+        out[s] = {
+            "total": len(ids),
+            "labeled": len(recs),
+            "modes": dict(Counter(r.blind_mode for r in recs)),
+            "recheck_total": sum(i in recheck for i in ids),
+            "rechecked": sum(records[i].rechecked for i in ids if i in recheck),
+        }
+    return out

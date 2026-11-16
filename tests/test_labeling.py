@@ -27,14 +27,20 @@ from wanderlint.labeling import (
     checklist_problems,
     compute_stats,
     defect_hints,
+    done_ids,
     field_choices,
     labeling_order,
     latest_records,
     match_seeds,
+    mode_for,
+    needs_recheck,
+    recheck_ids,
     reconcile,
     reconcile_checklist,
     resume_index,
     save_record,
+    split_order,
+    split_progress,
     validate_span,
 )
 from wanderlint.models import GoldLabel, Listing, Span, UnsureLabel
@@ -642,3 +648,126 @@ def test_blind_match_needs_same_type_and_a_shared_field() -> None:
     hit = rec(["short_description", "description"], [])  # one shared field is enough
     t = compute_stats([hit])["per_type"]
     assert t["D2"]["blind_recall"] == 1.0 and t["D2"]["blind_precision"] == 1.0
+
+
+# --- Splits: order, modes, verify, re-check ---------------------------------------
+
+SPLIT = {"t1": "test", "t2": "test", "t3": "test", "d1": "dev", "d2": "dev"}
+
+
+def test_split_order_rechecks_then_test_then_dev() -> None:
+    order = split_order(SPLIT, SPLIT, first=["t3"])
+    assert order[0] == "t3"
+    assert {*order[1:3]} == {"t1", "t2"} and {*order[3:]} == {"d1", "d2"}
+    assert mode_for("t1", SPLIT) == "checklist" and mode_for("d1", SPLIT) == "verify"
+
+
+def _free(lid: str, **kw) -> LogRecord:
+    return record(**kw).model_copy(update={"listing_id": lid})
+
+
+def test_recheck_needed_for_free_test_listings_only() -> None:
+    records = {"t1": _free("t1"), "d1": _free("d1"), "t2": checklist_record("t2")}
+    assert recheck_ids(records, SPLIT) == ["t1"]
+    assert needs_recheck(records, SPLIT) == ["t1"]
+    assert done_ids(records, SPLIT) == {"d1", "t2"}  # t1 still needs its re-check
+    order = split_order(SPLIT, SPLIT, first=recheck_ids(records, SPLIT))
+    assert order[resume_index(order, done_ids(records, SPLIT))] == "t1"
+
+
+def test_recheck_record_keeps_free_mode_and_adds_labels() -> None:
+    prev = record()  # free mode: D1 added, D2 confirmed, D3 rejected
+    rec = record(
+        previous=prev,
+        added_labels=[blind("D8", sp("title", "Fira"))],
+        recheck=True,
+        saved_at="2026-11-16T20:00:00+00:00",
+        reconcile_seconds=15.0,
+    )
+    assert rec.blind_mode == "free" and rec.rechecked
+    assert rec.rechecked_at == "2026-11-16T20:00:00+00:00"
+    assert rec.blind_labels == prev.blind_labels and rec.blind_seconds == prev.blind_seconds
+    assert rec.reconcile_seconds == 35.0
+    assert [(g.defect_id, g.label_source) for g in rec.final_labels] == [
+        ("D1", "added_by_human"),
+        ("D2", "confirmed"),
+        ("D8", "added_by_human"),
+    ]
+    # a later edit keeps the re-check flag and its timestamp
+    later = record(previous=rec, added_labels=rec.added_labels, saved_at="later")
+    assert later.rechecked and later.rechecked_at == "2026-11-16T20:00:00+00:00"
+    records = {"t1": rec.model_copy(update={"listing_id": "t1"})}
+    assert needs_recheck(records, SPLIT) == [] and done_ids(records, SPLIT) == {"t1"}
+
+
+def verify_record(**kw) -> LogRecord:
+    defaults = dict(
+        blind=[],
+        unsure=[],
+        seeds=[seed("D2", ACCESS, ATTR), seed("D3", sp("title", "Fira"))],
+        outcomes=[
+            SeedOutcome(defect_id="D2", action="confirm"),
+            SeedOutcome(defect_id="D3", action="retype", new_defect_id="D8"),
+        ],
+        dropped_blind=(),
+        removed_spans=[],
+        blind_seconds=0.0,
+        reconcile_seconds=45.0,
+        saved_at="t",
+        blind_mode="verify",
+        added_labels=[blind("D1", EMPTY_MP)],
+    )
+    defaults.update(kw)
+    return build_record(LID, **defaults)
+
+
+def test_verify_record_and_save(tmp_path: Path) -> None:
+    rec = verify_record()
+    assert rec.blind_mode == "verify" and rec.blind_seconds == 0.0
+    assert rec.checklist == [] and rec.blind_labels == [] and rec.unsure == []
+    assert [(g.defect_id, g.label_source) for g in rec.final_labels] == [
+        ("D1", "added_by_human"),
+        ("D2", "confirmed"),
+        ("D8", "added_by_human"),  # retyped from D3
+    ]
+    assert [(r.defect_id, r.reason) for r in rec.rejected] == [("D3", "retyped to D8")]
+    assert blind_claims(rec) == set()  # no blind pass: nothing for the baseline
+    save_record(tmp_path, rec)
+    assert {g["defect_id"] for g in _rows(tmp_path / GOLD)} == {"D1", "D2", "D8"}
+    (log,) = _rows(tmp_path / LOG)
+    assert log["blind_mode"] == "verify" and log["added_labels"][0]["defect_id"] == "D1"
+    again = verify_record(previous=rec, added_labels=[], reconcile_seconds=5.0)
+    assert again.blind_mode == "verify" and again.edited and again.reconcile_seconds == 50.0
+    assert "D1" not in {g.defect_id for g in again.final_labels}
+
+
+def test_verify_added_label_contradicting_a_rejected_seed() -> None:
+    with pytest.raises(ReconcileError, match="drop it or confirm"):
+        verify_record(
+            outcomes=[
+                SeedOutcome(defect_id="D2", action="confirm"),
+                SeedOutcome(defect_id="D3", action="reject", reason="no claim"),
+            ],
+            added_labels=[blind("D3", ACCESS)],
+        )
+
+
+def test_split_progress_and_checklist_only_baseline() -> None:
+    records = {
+        "t1": _free("t1"),
+        "t2": checklist_record("t2"),
+        "d1": verify_record().model_copy(update={"listing_id": "d1"}),
+    }
+    p = split_progress(records, SPLIT)
+    assert p["test"] == {
+        "total": 3,
+        "labeled": 2,
+        "modes": {"free": 1, "checklist": 1},
+        "recheck_total": 1,
+        "rechecked": 0,
+    }
+    assert p["dev"]["labeled"] == 1 and p["dev"]["modes"] == {"verify": 1}
+    st = compute_stats(records.values())
+    assert st["verify_listings"] == 1 and st["rechecked"] == 0
+    check = baseline(compute_stats(r for r in records.values() if r.blind_mode == "checklist"))
+    assert check["listings_labeled"] == 1 and check["blind_recall"] == 0.5

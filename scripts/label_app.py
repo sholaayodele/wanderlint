@@ -1,4 +1,8 @@
-"""Streamlit labeling tool: blind-then-reveal (labeling_guide.md §1, §6).
+"""Streamlit labeling tool (labeling_guide.md §1, §6).
+
+Order: re-checks of free-mode test listings, then the rest of test, then dev (data/splits.json).
+Test = blind checklist then reveal; dev = verify (seeds visible: decide each seed, then
+"anything else?"); free-mode test listings get one re-check in reconcile.
 
 Blind pass = a checklist: Yes / No / Unsure for each defect type D1–D8 (Yes: field(s), no span;
 Unsure: a one-line reason). Reveal is disabled until all 8 are answered. Reconcile: decide each
@@ -24,6 +28,7 @@ from wanderlint.labeling import (
     DEFECT_IDS,
     DROP_REASONS,
     PHASE_CAP_S,
+    BlindLabel,
     ChecklistAnswer,
     DropReason,
     LogRecord,
@@ -35,42 +40,55 @@ from wanderlint.labeling import (
     cheat_sheet,
     checklist_problems,
     defect_hints,
+    done_ids,
     field_choices,
     field_options,
-    labeling_order,
     latest_records,
     load_listings,
     load_seeds,
     match_seeds,
+    mode_for,
+    needs_recheck,
+    recheck_ids,
     reconcile,
     reconcile_checklist,
     resume_index,
     save_record,
+    split_order,
     validate_span,
 )
 from wanderlint.models import Listing, Span, UnsureLabel
+from wanderlint.splits import load_split
 
 ROOT = Path(__file__).resolve().parents[1]
 ACTIONS = {"confirm": "Confirm", "reject": "Reject", "retype": "Change type"}
 ANSWERS = {"yes": "Yes", "no": "No", "unsure": "Unsure"}
 
 
+CFG = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+SPLITS_PATH = ROOT / CFG["paths"]["splits"]
+LABELS_DIR = ROOT / CFG["paths"]["labels_dir"]
+MODE_NAMES = {
+    "checklist": "blind checklist",
+    "verify": "seeds visible",
+    "free": "free-form (legacy)",
+}
+
+
 @st.cache_data
-def _static() -> tuple[dict, dict, list[str], str, dict]:
-    cfg = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
-    listings = load_listings(ROOT / cfg["datagen"]["output_listings"])
-    seeds = load_seeds(ROOT / cfg["datagen"]["output_seeded"])
+def _static() -> tuple[dict, dict, str, dict, dict]:
+    listings = load_listings(ROOT / CFG["datagen"]["output_listings"])
+    seeds = load_seeds(ROOT / CFG["datagen"]["output_seeded"])
     guide = (ROOT / "labeling_guide.md").read_text(encoding="utf-8")
-    return listings, seeds, labeling_order(listings), cheat_sheet(guide), defect_hints(guide)
+    return listings, seeds, cheat_sheet(guide), defect_hints(guide), load_split(SPLITS_PATH)
 
 
-def _labels_dir() -> Path:
-    cfg = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
-    return ROOT / cfg["paths"]["labels_dir"]
-
-
-LISTINGS, SEEDS, ORDER, CHEAT, HINTS = _static()
-LABELS_DIR = _labels_dir()
+if not SPLITS_PATH.exists():
+    st.error(f"{CFG['paths']['splits']} is missing: run `make split` first.")
+    st.stop()
+LISTINGS, SEEDS, CHEAT, HINTS, SPLIT = _static()
+# free-mode test records are never created any more, so this order is stable across saves
+ORDER = split_order(LISTINGS, SPLIT, recheck_ids(latest_records(LABELS_DIR), SPLIT))
 
 
 def _dname(d: str) -> str:
@@ -88,7 +106,7 @@ def _state():
     s = st.session_state
     if "records" not in s:
         s.records = latest_records(LABELS_DIR)
-        s.idx = min(resume_index(ORDER, s.records), len(ORDER) - 1)
+        s.idx = min(resume_index(ORDER, done_ids(s.records, SPLIT)), len(ORDER) - 1)
         s.work = {}
         s.paused = False
     return s
@@ -96,7 +114,9 @@ def _state():
 
 def _new_work(lid: str, prev: LogRecord | None) -> dict:
     w = {
-        "mode": prev.blind_mode if prev is not None else "checklist",
+        "mode": prev.blind_mode if prev is not None else mode_for(lid, SPLIT),
+        "recheck": prev is not None and lid in needs_recheck({lid: prev}, SPLIT),
+        "added": {},  # d -> [Span]: labels added with the seeds visible (verify, re-check)
         "checklist": {},  # d -> {"answer", "fields", "reason"}
         "drops": {},  # d -> {"reason", "note"}
         "human_spans": {},  # d -> [Span] entered in reconcile
@@ -123,15 +143,21 @@ def _new_work(lid: str, prev: LogRecord | None) -> dict:
         w["removed"] = [
             (d, x) for d, sps in seed_spans.items() if d in final for x in sps if x not in final[d]
         ]
-    elif prev is not None:  # free-mode re-edit: blind pass is locked, only reconcile changes
+    elif prev is not None:  # free/verify re-edit: blind pass is locked, only reconcile changes
         w["blind"] = list(prev.blind_labels)
         w["unsure"] = list(prev.unsure)
         w["revealed"] = True
         w["outcomes"] = {o.defect_id: o.model_dump() for o in prev.seed_outcomes}
         w["dropped"] = set(prev.dropped_blind)
+        w["added"] = {d: list(sps) for d, sps in blind_by_type(prev.added_labels).items()}
         try:
             full, _ = reconcile(
-                lid, prev.blind_labels, prev.seeds, prev.seed_outcomes, prev.dropped_blind
+                lid,
+                prev.blind_labels,
+                prev.seeds,
+                prev.seed_outcomes,
+                prev.dropped_blind,
+                added=prev.added_labels,
             )
             kept = [(g.defect_id, s) for g in prev.final_labels for s in g.spans]
             w["removed"] = [
@@ -139,6 +165,8 @@ def _new_work(lid: str, prev: LogRecord | None) -> dict:
             ]
         except ReconcileError:
             pass
+    if w["mode"] == "verify":
+        w["revealed"] = True  # no blind pass: one (reconcile) timer from the start
     return w
 
 
@@ -494,8 +522,84 @@ def _save(s, lid: str, rec: LogRecord) -> None:
     st.rerun()
 
 
+def _added(w: dict) -> list[BlindLabel]:
+    return [BlindLabel(defect_id=d, spans=sps) for d, sps in w["added"].items() if sps]
+
+
+def _added_problems(w: dict) -> list[str]:
+    return [
+        f"{d}: add at least one span or remove the label" for d, s in w["added"].items() if not s
+    ]
+
+
+def render_added(lid: str, lst: Listing, w: dict) -> None:
+    """The "anything else?" step: defects the seeds missed (type + field + verbatim span)."""
+    st.subheader("Anything else?")
+    st.caption("Seeds are not complete. Add any defect they missed: type, field, verbatim span.")
+    for d in list(w["added"]):
+        with st.container(border=True):
+            c1, c2 = st.columns([6, 2])
+            c1.markdown(f"**{_dname(d)}** · added by you")
+            if c2.button("Remove label", key=f"{lid}:addrm:{d}"):
+                del w["added"][d]
+                st.rerun()
+            _span_adder(lid, lst, f"add-{d}", w["added"][d], [])
+    free = [d for d in DEFECT_IDS if d not in w["added"]]
+    with st.form(f"{lid}:add_form", clear_on_submit=True, border=False):
+        d = st.selectbox("Defect type", free, index=None, format_func=_dname)
+        if st.form_submit_button("Add a label") and d is not None:
+            w["added"][d] = []
+            st.rerun()
+
+
+def render_verify(s, lid: str, lst: Listing, w: dict) -> None:
+    """Dev listings: seeds visible from the start; decide each, then add anything else."""
+    seeds = SEEDS.get(lid, [])
+    st.subheader("Seeds")
+    if not seeds:
+        st.info("No seeded defects for this listing.")
+    for seed in seeds:
+        with st.container(border=True):
+            st.markdown(f"**{_dname(seed.defect_id)}**")
+            for sp in seed.spans:
+                st.markdown(_span_line(sp))
+            _seed_decision(lid, seed.defect_id, w)
+    render_added(lid, lst, w)
+
+    st.subheader("Result")
+    outcomes = _outcomes(w)
+    problems = _added_problems(w)
+    try:
+        if problems:
+            raise ReconcileError("; ".join(problems))
+        full, _ = reconcile(lid, [], seeds, outcomes, added=_added(w))
+        final, rejected = reconcile(lid, [], seeds, outcomes, (), w["removed"], _added(w))
+    except ReconcileError as e:
+        st.error(str(e))
+        return
+    _render_result(lid, w, full, rejected)
+    if st.button("Save & next", type="primary", key=f"{lid}:save"):
+        rec = build_record(
+            lid,
+            blind=[],
+            unsure=[],
+            seeds=seeds,
+            outcomes=outcomes,
+            dropped_blind=(),
+            removed_spans=w["removed"],
+            blind_seconds=0.0,
+            reconcile_seconds=w["timers"]["reconcile"].elapsed(time.monotonic()),
+            saved_at=datetime.now(UTC).isoformat(timespec="seconds"),
+            previous=w["prev"],
+            blind_mode="verify",
+            added_labels=_added(w),
+        )
+        _save(s, lid, rec)
+
+
 def render_reconcile(s, lid: str, lst: Listing, w: dict) -> None:
-    """Legacy free-mode reconcile (re-edits of records saved before the checklist)."""
+    """Legacy free-mode reconcile (re-edits and re-checks of records saved before the
+    checklist)."""
     seeds = SEEDS.get(lid, [])
     st.subheader("Seeds vs your labels")
     pairs = match_seeds(w["blind"], seeds)
@@ -526,17 +630,23 @@ def render_reconcile(s, lid: str, lst: Listing, w: dict) -> None:
             if seed is not None:
                 _seed_decision(lid, d, w)
     render_unsure(lid, w)
+    render_added(lid, lst, w)
 
     st.subheader("Result")
     outcomes = _outcomes(w)
+    problems = _added_problems(w)
     try:
-        full, _ = reconcile(lid, w["blind"], seeds, outcomes, w["dropped"])
-        final, rejected = reconcile(lid, w["blind"], seeds, outcomes, w["dropped"], w["removed"])
+        if problems:
+            raise ReconcileError("; ".join(problems))
+        args = (lid, w["blind"], seeds, outcomes, w["dropped"])
+        full, _ = reconcile(*args, added=_added(w))
+        final, rejected = reconcile(*args, w["removed"], _added(w))
     except ReconcileError as e:
         st.error(str(e))
         return
     _render_result(lid, w, full, rejected)
-    if st.button("Save & next", type="primary", key=f"{lid}:save"):
+    label = "Save re-check & next" if w["recheck"] else "Save & next"
+    if st.button(label, type="primary", key=f"{lid}:save"):
         now = time.monotonic()
         rec = build_record(
             lid,
@@ -550,28 +660,52 @@ def render_reconcile(s, lid: str, lst: Listing, w: dict) -> None:
             reconcile_seconds=w["timers"]["reconcile"].elapsed(now),
             saved_at=datetime.now(UTC).isoformat(timespec="seconds"),
             previous=w["prev"],
+            added_labels=_added(w),
+            recheck=w["recheck"],
         )
         _save(s, lid, rec)
 
 
+def _progress_line(split: str, records: dict) -> str:
+    ids = [i for i, x in SPLIT.items() if x == split]
+    n = sum(i in records for i in ids)
+    line = f"{split}: {n}/{len(ids)} labeled"
+    rc = [i for i in recheck_ids(records, SPLIT) if SPLIT[i] == split]
+    if rc:
+        line += f" · re-checked {sum(records[i].rechecked for i in rc)}/{len(rc)}"
+    return line
+
+
+def _jump_label(i: int, records: dict) -> str:
+    lid = ORDER[i]
+    tag = "T" if SPLIT[lid] == "test" else "D"
+    mark = ""
+    if lid in records:
+        mark = " ↻" if lid in needs_recheck({lid: records[lid]}, SPLIT) else " ✓"
+    return f"{i + 1}. [{tag}] {lid}{mark}"
+
+
 def sidebar(s) -> None:
     with st.sidebar:
-        n = len(s.records)
-        st.progress(n / len(ORDER), text=f"{n}/{len(ORDER)} labeled")
+        done = done_ids(s.records, SPLIT)
+        n = len(done)
+        st.progress(n / len(ORDER), text=f"{n}/{len(ORDER)} done")
+        for split in ("test", "dev"):
+            st.caption(_progress_line(split, s.records))
         c1, c2, c3 = st.columns(3)
         c1.button("◀ Prev", on_click=_go, args=(s.idx - 1,), disabled=s.idx == 0)
         c2.button("Next ▶", on_click=_go, args=(s.idx + 1,), disabled=s.idx == len(ORDER) - 1)
         c3.button(
             "Resume",
             on_click=_go,
-            args=(resume_index(ORDER, s.records),),
-            help="First listing not yet labeled",
+            args=(resume_index(ORDER, done),),
+            help="First listing not yet labeled (or re-checked)",
         )
         st.session_state.jump = s.idx
         st.selectbox(
             "Jump to",
             list(range(len(ORDER))),
-            format_func=lambda i: f"{i + 1}. {ORDER[i]}" + (" ✓" if ORDER[i] in s.records else ""),
+            format_func=lambda i: _jump_label(i, s.records),
             key="jump",
             on_change=_jump,
         )
@@ -591,12 +725,18 @@ def main() -> None:
     if not s.paused:
         timer.start(now)
 
-    phase = "Reconcile" if w["revealed"] else "Blind pass"
+    if w["recheck"]:
+        phase = "Re-check"
+    elif w["mode"] == "verify":
+        phase = "Verify"
+    else:
+        phase = "Reconcile" if w["revealed"] else "Blind pass"
     head, tbtn = st.columns([6, 1])
-    status = " · edited" if w["prev"] is not None else ""
+    status = " · edited" if w["prev"] is not None and not w["recheck"] else ""
     head.markdown(
-        f"### {s.idx + 1}/{len(ORDER)} · `{lid}` · locale **{lst.locale}**{status}  \n"
-        f"{phase} · active {_fmt_secs(timer.elapsed(now))} (updates on each action)"
+        f"### {s.idx + 1}/{len(ORDER)} · `{lid}` · **{SPLIT[lid]}** · locale **{lst.locale}**"
+        f"{status}  \n{phase} ({MODE_NAMES[w['mode']]}) · active "
+        f"{_fmt_secs(timer.elapsed(now))} (updates on each action)"
     )
     if tbtn.button("Resume ▶" if s.paused else "Pause ⏸", key="pause"):
         (timer.start if s.paused else timer.pause)(now)
@@ -612,7 +752,15 @@ def main() -> None:
     with left:
         render_listing(lst)
     with right:
+        if w["mode"] == "verify":
+            render_verify(s, lid, lst, w)
+            return
         if w["mode"] == "free":  # legacy record: locked blind view + free-mode reconcile
+            if w["recheck"]:
+                st.info(
+                    "Re-check (test listing labeled free-form): re-review every confirmed seed "
+                    "and add anything missed below. No blind pass."
+                )
             render_blind_free(w)
             render_reconcile(s, lid, lst, w)
             return

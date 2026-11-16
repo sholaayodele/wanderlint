@@ -169,3 +169,19 @@ fixes, and taxonomy/prompt version changes.
   recall 37.5% → 25.0% (D2 50% → 0%); all listings 10.7% → 7.1%, excluding calibration
   15.0% → 10.0%; precision unchanged on all three rows.
   Test: `test_blind_match_needs_same_type_and_a_shared_field`.
+- 2026-11-16 — labeling plan change: blind checklist for the test set only, verify mode for dev.
+  Split frozen first (`data/splits.json`, `make split`): 100 dev / 50 test, iterative
+  stratification over {locale} + seeded defect types ("clean" if none), seed 11. Test: 35 en-GB
+  / 15 de-DE, 22 clean (44%), seeded types D1–D8 = 6/8/6/7/6/6/8/7. Every type and locale is
+  within ±1 of a third; "clean" takes the slack (22 vs 20.3).
+  Rationale: the blind checklist costs ~4–5 min per listing (median 287 s on the first 9) and
+  only matters where it protects the measurement: the test set, where the checker is scored
+  and anchoring on seeds would inflate gold agreement with the generator. Dev gold is used to
+  iterate, so speed matters more there: "verify" shows the seeds up front (confirm / reject /
+  retype each) plus one "anything else?" step for missed defects, which can still anchor on
+  the seeds. Order: test first, then dev. The 7 test listings labeled with the legacy
+  free-form blind pass (gen-0001, 0017, 0026, 0061, 0067, 0076, 0143) get one re-check in
+  reconcile (no new blind pass; `rechecked: true` + timestamp) and stay out of the human
+  baseline. The human baseline is now reported from checklist listings only (all splits, and
+  test only). Caveat in README §10: dev gold verified with seeds visible; test gold labeled
+  blind.

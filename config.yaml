@@ -66,8 +66,13 @@ paths:
   listings_dir: data/listings
   dev: data/listings/dev.jsonl
   test: data/listings/test.jsonl
+  splits: data/splits.json            # frozen dev/test ids (scripts/make_split.py)
   regression_dir: data/listings/regression
   labels_dir: data/labels
   gold: data/labels/gold.jsonl
   reports_dir: reports
   cache_dir: .cache/llm
+
+split:
+  seed: 11
+  test_size: 50                      # of 150; the rest is dev

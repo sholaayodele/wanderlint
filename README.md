@@ -238,6 +238,7 @@ Stated up front, and repeated in every evaluation report:
 - **Synthetic data.** Real supplier content is messier than any generator. The taxonomy and pipeline are built to transfer; the metrics are only claimed for this dataset.
 - **Two locales.** v1 covers English and German only.
 - **Small sample.** 150 listings gives directional per-defect metrics, not definitive ones. Every report states support and caveats per defect type.
+- **Dev gold verified with seeds visible; test gold labeled blind.**
 
 ---
 
@@ -250,7 +251,7 @@ Stated up front, and repeated in every evaluation report:
 - [x] Synthetic data pipeline with automated quality audits — 150 listings, 163 planted defects, €2.21
 - [x] Blind-then-reveal labeling app
 - [ ] Human validation of all 150 listings; self-agreement (κ)
-- [ ] Frozen dev / test split
+- [x] Frozen dev / test split
 
 **M2 — Baseline: can an LLM do this at all?**
 - [ ] Rule checks (D1, D5, D6, D7, D8)

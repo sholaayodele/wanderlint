@@ -283,31 +283,43 @@ unsure for the same reason, stop and fix the taxonomy before you label more.
 | `added_by_human` | A defect you found that wasn't seeded. |
 
 - The **frozen `gold.jsonl`** contains only `confirmed` and `added_by_human`.
-- **Blind-then-reveal** (`make label`, i.e. `scripts/label_app.py`): seeing the seeds first
-  anchors you on them, so each listing starts blind.
-  1. **Blind checklist:** for every type D1–D8 (cheat-sheet order, one-line test shown) answer
-     Yes / No / Unsure. Yes: pick the field(s), no span needed yet. Unsure: one line why.
-     *Reveal seeds* stays disabled until all 8 are answered.
-  2. **Reconcile:** decide each seed (Confirm / Reject with a reason / Change type). A blind Yes
-     with no seed is kept as `added_by_human` unless you drop it, and dropping needs a reason:
-     "guide rule says it's not this defect", "misread the listing", or "other: …". Enter
-     verbatim spans for every kept human-added label here. A Yes that matches a confirmed seed
-     uses the seed's spans. An open Unsure (its type didn't end up in gold) goes to
-     `unsure.jsonl`. Seeds are not complete: keep a Yes you still believe in.
-  3. Blind recall/precision are computed from the checklist answers per (listing, defect
-     type). A Yes matches a gold label only if it is the same type AND names at least one
-     field that label's spans touch (same rule for recall and precision). Records made this way have `blind_mode: "checklist"`; the 21 listings labeled
-     before the checklist (free-form blind labels) keep their gold but are left out of the
-     checklist baseline. The first 10 labeled are calibration.
-  Hard-case and trap info from generation is never shown. Listings come in a fixed random
-  order (seed 7); you can resume and go back. Going back to a saved listing keeps your blind
-  pass locked and lets you change only the reconcile decisions. Use *Pause* for breaks: each
-  phase is capped at 10 minutes of active time, and capped records are left out of the time
-  medians.
+- **Which listings, which mode** (`make label`, i.e. `scripts/label_app.py`; split frozen in
+  `data/splits.json`, 100 dev / 50 test). Seeing the seeds first anchors you on them, so the
+  **test set is labeled blind**; dev gold is **verified with the seeds visible**, which is
+  faster (rationale: `failure_patterns.md`, 2026-11-16). Order: re-checks, then the rest of
+  test, then dev; each group in a fixed random order (seed 7). Resume jumps to the first
+  listing still to do.
+  - **Test: blind checklist** (`blind_mode: "checklist"`).
+    1. For every type D1–D8 (cheat-sheet order, one-line test shown) answer Yes / No /
+       Unsure. Yes: pick the field(s), no span needed yet. Unsure: one line why. *Reveal
+       seeds* stays disabled until all 8 are answered.
+    2. Reconcile: decide each seed (Confirm / Reject with a reason / Change type). A blind Yes
+       with no seed is kept as `added_by_human` unless you drop it, and dropping needs a
+       reason: "guide rule says it's not this defect", "misread the listing", or "other: …".
+       Enter verbatim spans for every kept human-added label here. A Yes that matches a
+       confirmed seed uses the seed's spans. An open Unsure (its type didn't end up in gold)
+       goes to `unsure.jsonl`. Seeds are not complete: keep a Yes you still believe in.
+  - **Dev: verify** (`blind_mode: "verify"`). Seeds are shown straight away: Confirm /
+    Reject (reason) / Change type for each, then one **Anything else?** step to add what the
+    seeds missed (type + field + verbatim span). One timer, no blind pass.
+  - **Re-check** (test listings labeled before the checklist, free-form blind pass): they come
+    first and open in reconcile. Re-review every confirmed seed and add anything missed in
+    *Anything else?*. No blind pass; the record stays `blind_mode: "free"` and gets
+    `rechecked: true` plus `rechecked_at`.
+  - **Human baseline** = checklist listings only (all splits, and test only). Verify, free-form
+    and re-checked records keep their gold but are left out of it. Blind recall/precision are
+    computed per (listing, defect type) from the checklist: a Yes matches a gold label only if
+    it is the same type AND names at least one field that label's spans touch (same rule for
+    recall and precision). The first 10 labeled are calibration (all free-form).
+  Hard-case and trap info from generation is never shown. You can go back to any saved
+  listing: the blind pass stays locked and only the reconcile decisions change. Use *Pause*
+  for breaks: each phase is capped at 10 minutes of active time, and capped records are left
+  out of the time medians.
 - **Files:** the app writes `gold.jsonl`, `rejected_seeds.jsonl`, `unsure.jsonl` and
   `labeling_log.jsonl` (blind labels, seeds, outcome per seed, seconds per phase; the
-  latest save per listing wins). `make label-stats` reports seed rejection rate,
-  human-added labels, blind recall and precision, unsure count and time per listing.
+  latest save per listing wins). `make label-stats` reports progress per split (with
+  re-checks), seed rejection rate, human-added labels, the checklist baseline (blind recall
+  and precision, all splits and test only), unsure count and time per listing.
 - **Saving your work:** run `make save-labels` after a session. It commits
   `data/labels/*.jsonl` as "Labels: <n>/150 labeled" and pushes.
 - **Rejecting a seed:** leave it out of gold and log it in
