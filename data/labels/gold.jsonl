@@ -1,6 +1,9 @@
 {"listing_id":"gen-0001","defect_id":"D2","spans":[{"field":"description","span":"The car is wheelchair accessible and air-conditioned"},{"field":"attributes.wheelchair_accessible","span":"false"}],"label_source":"confirmed"}
 {"listing_id":"gen-0028","defect_id":"D2","spans":[{"field":"description","span":"relaxed 5-hour evening tour"},{"field":"duration","span":"3 hours"}],"label_source":"confirmed"}
 {"listing_id":"gen-0028","defect_id":"D7","spans":[{"field":"tags","span":"Wine tasting"}],"label_source":"confirmed"}
+{"listing_id":"gen-0035","defect_id":"D1","spans":[{"field":"cancellation_policy","span":""}],"label_source":"confirmed"}
+{"listing_id":"gen-0035","defect_id":"D2","spans":[{"field":"short_description","span":"Spend three hours exploring"},{"field":"duration","span":"Full day (7 hours)"}],"label_source":"confirmed"}
+{"listing_id":"gen-0035","defect_id":"D6","spans":[{"field":"meeting_point","span":"capetown.guide@gmail.com"}],"label_source":"confirmed"}
 {"listing_id":"gen-0042","defect_id":"D2","spans":[{"field":"description","span":"A herbal tea is served after the class."},{"field":"exclusions","span":"Herbal tea after the class"}],"label_source":"confirmed"}
 {"listing_id":"gen-0042","defect_id":"D3","spans":[{"field":"short_description","span":"The official yoga class of the Englischer Garten"}],"label_source":"confirmed"}
 {"listing_id":"gen-0042","defect_id":"D5","spans":[{"field":"description","span":"1.200,5 metres"}],"label_source":"confirmed"}
